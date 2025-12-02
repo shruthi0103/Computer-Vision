@@ -570,6 +570,7 @@ def download_csv_module7():
     return "No CSV generated yet", 404
 
 # --- THE NEW HTTP POST ROUTE ---
+# --- UPDATE THIS FUNCTION IN APP.PY ---
 @app.route('/process_frame', methods=['POST'])
 def process_frame():
     import numpy as np
@@ -581,42 +582,60 @@ def process_frame():
         data = request.json
         image_data = data.get('image')
         
-        # Decode Base64
+        # Decode
         header, encoded = image_data.split(",", 1)
         binary = base64.b64decode(encoded)
         np_arr = np.frombuffer(binary, np.uint8)
         frame = cv2.imdecode(np_arr, cv2.IMREAD_COLOR)
         
-        if frame is None: 
-            return jsonify({"error": "Empty frame"}), 400
+        if frame is None: return jsonify({"error": "Empty frame"}), 400
 
         # Process
         model, drawing, mp_ref = get_model()
         image_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
         results = model.process(image_rgb)
         
-        # Draw
-        if results.pose_landmarks:
-            drawing.draw_landmarks(frame, results.pose_landmarks, mp_ref.POSE_CONNECTIONS)
-        if results.left_hand_landmarks:
-            drawing.draw_landmarks(frame, results.left_hand_landmarks, mp_ref.HAND_CONNECTIONS)
-        if results.right_hand_landmarks:
-            drawing.draw_landmarks(frame, results.right_hand_landmarks, mp_ref.HAND_CONNECTIONS)
+        # --- NEW: DEFINE THIN DRAWING STYLE ---
+        # thickness=1, circle_radius=1 makes it look sharp on small images
+        landmark_style = drawing.DrawingSpec(color=(0, 255, 0), thickness=1, circle_radius=1)
+        connection_style = drawing.DrawingSpec(color=(255, 255, 255), thickness=1, circle_radius=1)
 
-        # CSV Logging
-        if results.pose_landmarks and CSV_FILENAME is None:
-             ts = int(time.time())
-             CSV_FILENAME = os.path.join(UPLOAD_FOLDER, f"pose_{ts}.csv")
-             with open(CSV_FILENAME, 'w') as f: f.write("timestamp,pose_present\n")
-        
+        # Draw Pose
         if results.pose_landmarks:
+            drawing.draw_landmarks(
+                frame, results.pose_landmarks, mp_ref.POSE_CONNECTIONS,
+                landmark_drawing_spec=landmark_style,
+                connection_drawing_spec=connection_style
+            )
+            
+            # Simple CSV Log
+            if CSV_FILENAME is None:
+                 ts = int(time.time())
+                 CSV_FILENAME = os.path.join(UPLOAD_FOLDER, f"pose_{ts}.csv")
+                 with open(CSV_FILENAME, 'w') as f: f.write("timestamp,pose_present\n")
             with open(CSV_FILENAME, 'a') as f: f.write(f"{int(time.time()*1000)},1\n")
+
+        # Draw Left Hand
+        if results.left_hand_landmarks:
+            drawing.draw_landmarks(
+                frame, results.left_hand_landmarks, mp_ref.HAND_CONNECTIONS,
+                landmark_drawing_spec=landmark_style,
+                connection_drawing_spec=connection_style
+            )
+
+        # Draw Right Hand
+        if results.right_hand_landmarks:
+            drawing.draw_landmarks(
+                frame, results.right_hand_landmarks, mp_ref.HAND_CONNECTIONS,
+                landmark_drawing_spec=landmark_style,
+                connection_drawing_spec=connection_style
+            )
 
         # Encode
         _, buffer = cv2.imencode('.jpg', frame)
         response_b64 = base64.b64encode(buffer).decode('utf-8')
         
-        # Explicit cleanup
+        # Cleanup
         del frame, image_rgb, results, binary
         gc.collect()
 
