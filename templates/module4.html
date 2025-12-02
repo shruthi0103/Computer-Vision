@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Module 4 – Panorama Stitching & SIFT Feature Extraction</title>
+
+  <style>
+    body {
+      font-family: "Inter", Arial, sans-serif;
+      background: #f1f5f9;
+      padding: 40px;
+      text-align: center;
+      color: #1e293b;
+    }
+
+    h1 {
+      font-size: 32px;
+      margin-bottom: 25px;
+      font-weight: 700;
+      color: #1e40af;
+    }
+
+    h2 {
+      margin-top: 40px;
+      font-size: 24px;
+      font-weight: 600;
+      color: #334155;
+    }
+
+    h3 {
+      margin-top: 20px;
+      font-size: 20px;
+      font-weight: 600;
+      color: #334155;
+    }
+
+    .action-btn {
+      padding: 14px 26px;
+      margin: 12px;
+      font-size: 16px;
+      border: none;
+      border-radius: 10px;
+      background: #2563eb;
+      color: #fff;
+      cursor: pointer;
+      font-weight: 600;
+      transition: 0.2s;
+    }
+    .action-btn:hover {
+      background: #1d4ed8;
+    }
+
+    .thumb {
+      width: 160px;
+      border-radius: 10px;
+      margin: 12px;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.12);
+      background: #fff;
+    }
+
+    img.output {
+      max-width: 95%;
+      border-radius: 12px;
+      margin: 20px 0;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    }
+
+    .section-box {
+      background: white;
+      margin-top: 35px;
+      padding: 25px;
+      border-radius: 14px;
+      box-shadow: 0 3px 12px rgba(0,0,0,0.08);
+    }
+
+    .demo-wrap {
+      width: 100%;
+      max-width: 900px;
+      margin: auto;
+      border-radius: 12px;
+      overflow: hidden;
+      box-shadow: 0px 4px 14px rgba(0,0,0,0.25);
+      margin-top: 20px;
+    }
+
+    iframe {
+      width: 100%;
+      height: 500px;
+      border: none;
+    }
+  </style>
+</head>
+
+<body>
+
+  <h1>Module 4 — Panorama Stitching & SIFT Feature Extraction</h1>
+
+  <!-- Buttons -->
+  <button id="btnStitch" class="action-btn">Run Panorama Stitching</button>
+  <button id="btnSift" class="action-btn">Run SIFT & RANSAC Feature Extraction</button>
+
+  <!-- Input Images -->
+  <div class="section-box">
+    <h2>Input Images Used for Stitching</h2>
+    <div id="inputImages"></div>
+  </div>
+
+  <!-- Panorama Results -->
+  <div id="panoSection" class="section-box">
+    <h2>Panorama Results</h2>
+    <div id="panoResults"></div>
+  </div>
+
+  <!-- SIFT Results -->
+  <div id="siftSection" class="section-box">
+    <h2>SIFT + RANSAC Matching</h2>
+    <div id="siftResult"></div>
+  </div>
+
+  <!-- ================= DEMO VIDEO ================= -->
+  <div class="section-box">
+    <h2>📽️ Module 4 – Demo</h2>
+
+    <div class="demo-wrap">
+      <iframe 
+        src="https://drive.google.com/file/d/1Ay6DIaBuar7A6S7IA_glcLyT4g40CdLn/preview"
+        allow="autoplay; fullscreen"
+        allowfullscreen>
+      </iframe>
+    </div>
+  </div>
+
+  <script>
+    // ===============================
+    // LOAD INPUT IMAGES
+    // ===============================
+    fetch("/get_stitch_images")
+      .then(r => r.json())
+      .then(data => {
+        if (data.files) {
+          let html = "";
+          data.files.forEach(img => {
+            html += `<img class="thumb" src="/${img}">`;
+          });
+          document.getElementById("inputImages").innerHTML = html;
+        }
+      });
+
+    // ===============================
+    // PANORAMA STITCHING
+    // ===============================
+    document.getElementById("btnStitch").addEventListener("click", () => {
+        const panoDiv = document.getElementById("panoResults");
+        const inputDiv = document.getElementById("inputImages");
+        panoDiv.innerHTML = "<h4>Processing...</h4>";
+        inputDiv.innerHTML = "<h4>Loading input images...</h4>";
+
+        fetch("/process_stitch")
+            .then(res => res.json())
+            .then(data => {
+              if (data.error) {
+                  alert(data.error);
+                  panoDiv.innerHTML = "";
+                  inputDiv.innerHTML = "";
+                  return;
+              }
+
+              let thumbsHtml = "";
+              data.thumbnails.forEach(b64 => {
+                thumbsHtml += `<img class="thumb" src="data:image/jpeg;base64,${b64}">`;
+              });
+              inputDiv.innerHTML = thumbsHtml;
+
+              panoDiv.innerHTML = `
+                ${data.phone_pano ? 
+                  `<h3>📱 Input Panorama (Phone)</h3>
+                   <img class="output" src="data:image/jpeg;base64,${data.phone_pano}">` 
+                : ""}
+
+                <h3>🧵 Stitched Output</h3>
+                <img class="output" src="data:image/jpeg;base64,${data.stitched}">
+              `;
+        });
+    });
+
+    // ===============================
+    // SIFT + RANSAC VISUALIZATION
+    // ===============================
+    document.getElementById("btnSift").addEventListener("click", () => {
+        const siftDiv = document.getElementById("siftResult");
+        siftDiv.innerHTML = "<h4>Processing...</h4>";
+
+        fetch("/process_sift")
+            .then(res => res.json())
+            .then(data => {
+                if (data.error) {
+                    alert(data.error);
+                    siftDiv.innerHTML = "";
+                    return;
+                }
+
+                siftDiv.innerHTML = `
+                  <div style="display:flex; justify-content:center; gap:40px; flex-wrap:wrap;">
+                      
+                      <div style="text-align:center;">
+                        <h3>Custom SIFT + RANSAC</h3>
+                        <img class="output" src="data:image/jpeg;base64,${data.custom}">
+                      </div>
+
+                      <div style="text-align:center;">
+                        <h3>OpenCV SIFT + RANSAC</h3>
+                        <img class="output" src="data:image/jpeg;base64,${data.opencv}">
+                      </div>
+
+                  </div>
+                `;
+            });
+    });
+  </script>
+
+</body>
+</html>

@@ -1,0 +1,483 @@
+<!DOCTYPE html>. 
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Module 3 – Image Processing & Segmentation</title>
+
+
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 0;
+      padding: 40px 60px;
+      background: #f5f6fa;
+    }
+
+    h1 {
+      font-size: 32px;
+      margin-bottom: 25px;
+      font-weight: 700;
+      color: #1e40af;
+    }
+
+    section {
+      background: #ffffff;
+      padding: 24px 30px;
+      border-radius: 14px;
+      margin-bottom: 40px;
+      box-shadow: 0px 3px 12px rgba(0,0,0,0.10);
+    }
+
+    h2 {
+      margin-top: 0;
+      font-size: 22px;
+      margin-bottom: 10px;
+    }
+
+    .subtext {
+      font-size: 13px;
+      color: #555;
+      margin-bottom: 10px;
+    }
+
+    .control-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      align-items: center;
+      margin-bottom: 15px;
+    }
+
+    input[type="file"] {
+      font-size: 13px;
+    }
+
+    button {
+      background-color: #0056b3;
+      color: white;
+      border: none;
+      border-radius: 6px;
+      padding: 10px 18px;
+      font-size: 14px;
+      cursor: pointer;
+    }
+    button:hover { background-color: #003f88; }
+
+    .large-output {
+      width: 100%;
+      max-width: 1400px;
+      height: auto;
+      margin-top: 16px;
+      border-radius: 10px;
+      box-shadow: 0px 3px 10px rgba(0,0,0,0.18);
+      display: block;
+    }
+
+
+    #edgeGallery {
+      margin-top: 18px;
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(420px, 1fr));
+      gap: 20px;
+    }
+
+    .edge-card {
+      background: #fff;
+      padding: 12px;
+      border-radius: 10px;
+      box-shadow: 0px 2px 8px rgba(0,0,0,0.08);
+    }
+
+    .ec-label-row {
+      display: flex;
+      justify-content: space-between;
+      margin-bottom: 6px;
+      font-size: 14px;
+      font-weight: bold;
+      color: #444;
+    }
+
+    .ec-row {
+      display: flex;
+      gap: 6px;
+    }
+
+    .ec-row img {
+      width: 50%;
+      border-radius: 6px;
+      background: #eee;
+    }
+
+    /* ArUco grid */
+    #arucoGallery {
+      margin-top: 18px;
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(420px, 1fr));
+      gap: 20px;
+    }
+
+    .aruco-card {
+      background: #fff;
+      border-radius: 10px;
+      padding: 10px;
+      box-shadow: 0px 2px 8px rgba(0,0,0,0.08);
+    }
+    .aruco-card img {
+      width: 100%;
+      border-radius: 8px;
+    }
+
+    a {
+      color: #0056b3;
+      text-decoration: none;
+      font-size: 16px;
+    }
+  </style>
+</head>
+
+<body>
+
+  <h1>Module 3: Image Processing & Segmentation</h1>
+
+  <!-- 1. Gradient -->
+  <section>
+    <h2>1. Gradient Magnitude, Angle & LoG</h2>
+ 
+
+    <div class="control-row">
+      <input id="gradFiles" type="file" accept="image/*" multiple>
+      <button id="runGradient">Run Analysis</button>
+    </div>
+
+    <img id="outGrad" class="large-output">
+  </section>
+
+  <!-- 2. Edge + Corner -->
+  <section>
+    <h2>2. Edge & Corner Detection</h2>
+ 
+
+    <div class="control-row">
+      <input id="edgeFiles" type="file" accept="image/*" multiple>
+      <button id="runEdge">Run Detection</button>
+    </div>
+
+    <div id="edgeGallery"></div>
+  </section>
+
+  <!-- 3. ArUco -->
+  <section>
+    <h2>3. ArUco Marker Segmentation</h2>
+
+
+    <div class="control-row">
+      <input id="arucoFiles" type="file" accept="image/*" multiple>
+      <button id="runAruco">Run Segmentation</button>
+    </div>
+
+    <div id="arucoGallery"></div>
+  </section>
+
+  <!-- 4. Boundary -->
+  <section>
+    <h2>4. Object Boundary Detection</h2>
+  
+
+    <div class="control-row">
+      <input id="boundFiles" type="file" accept="image/*" multiple>
+      <button id="runBoundary">Draw Boundary</button>
+    </div>
+
+    <img id="outBoundary" class="large-output">
+  </section>
+  <!-- 5. SAM2 Segmentation (Offline Results) -->
+<section>
+  <h2>5. SAM2 Segmentation</h2>
+  <p class="subtext">
+    These results were generated offline using the SAM2 model.
+  </p>
+
+  <div class="control-row">
+    <button id="runSAM2">Show SAM2 Results</button>
+  </div>
+
+  <div id="sam2Gallery"
+       style="margin-top:18px; display:grid; grid-template-columns:repeat(auto-fit,minmax(420px,1fr)); gap:20px;">
+  </div>
+</section>
+
+<div class="container">
+  <section class="card p-4 mt-5 text-center">
+    <h4 class="mb-3">📽️ Module 3 – Demo</h4>
+
+    <div style="
+      width: 100%;
+      max-width: 900px;
+      margin: auto;
+      border-radius: 12px;
+      overflow: hidden;
+      box-shadow: 0px 4px 14px rgba(0,0,0,0.25);
+    ">
+      <iframe
+        src="https://drive.google.com/file/d/1Q81NSWfPsVgSIof4qX804UwArZtkBq1O/preview"
+        allow="autoplay; fullscreen"
+        allowfullscreen
+        style="
+          width: 100%;
+          height: 500px;
+          border: none;
+        ">
+      </iframe>
+    </div>
+
+  </section>
+</div>
+
+
+
+  <a href="/home">← Back to Home</a>
+
+  <script>
+    // 1 — Gradient
+    document.getElementById("runGradient").onclick = async () => {
+      const files = document.getElementById("gradFiles").files;
+      if (!files.length) {
+        alert("Please upload at least one image for Gradient/LoG.");
+        return;
+      }
+
+      const out = document.getElementById("outGrad");
+      out.src = "";
+      out.alt = "Processing...";
+
+      const fd = new FormData();
+      for (let i = 0; i < files.length; i++) {
+        fd.append("images[]", files[i]);
+      }
+
+      try {
+        const res = await fetch("/process_gradient_log", {
+          method: "POST",
+          body: fd
+        });
+
+        const json = await res.json();
+
+        if (!res.ok || json.error) {
+          alert("Error: " + (json.error || res.statusText));
+          return;
+        }
+
+        if (json.image) {
+          out.src = "data:image/png;base64," + json.image;
+          out.alt = "Gradient & LoG result";
+        } else {
+          alert("No image returned from server.");
+        }
+      } catch (err) {
+        alert("Network error: " + err.message);
+      }
+    };
+
+    // 2 — Edge/Corner Detection
+    document.getElementById("runEdge").onclick = async () => {
+      const files = document.getElementById("edgeFiles").files;
+      if (!files.length) {
+        alert("Please upload at least one image for Edge/Corner.");
+        return;
+      }
+
+      const gallery = document.getElementById("edgeGallery");
+      gallery.innerHTML = "<p>Processing...</p>";
+
+      const fd = new FormData();
+      for (let i = 0; i < files.length; i++) {
+        fd.append("images[]", files[i]);
+      }
+
+      try {
+        const res = await fetch("/process_edge_corner", {
+          method: "POST",
+          body: fd
+        });
+        const json = await res.json();
+
+        if (!res.ok || json.error) {
+          gallery.innerHTML = "<p style='color:red;'>Error: " + (json.error || res.statusText) + "</p>";
+          return;
+        }
+
+        if (!json.images || !json.images.length) {
+          gallery.innerHTML = "<p>No valid images processed.</p>";
+          return;
+        }
+
+        gallery.innerHTML = "";
+
+        json.images.forEach(item => {
+          const card = document.createElement("div");
+          card.className = "edge-card";
+
+          const labels = document.createElement("div");
+          labels.className = "ec-label-row";
+
+          const l1 = document.createElement("span");
+          l1.innerText = "Edge Map";
+
+          const l2 = document.createElement("span");
+          l2.innerText = "Corner Map";
+
+          labels.appendChild(l1);
+          labels.appendChild(l2);
+
+          const row = document.createElement("div");
+          row.className = "ec-row";
+
+          const img1 = document.createElement("img");
+          img1.src = "data:image/png;base64," + item.edges;
+
+          const img2 = document.createElement("img");
+          img2.src = "data:image/png;base64," + item.corners;
+
+          row.appendChild(img1);
+          row.appendChild(img2);
+
+          card.appendChild(labels);
+          card.appendChild(row);
+
+          gallery.appendChild(card);
+        });
+      } catch (err) {
+        gallery.innerHTML = "<p style='color:red;'>Network error: " + err.message + "</p>";
+      }
+    };
+
+    // 3 — ArUco
+    document.getElementById("runAruco").onclick = async () => {
+      const files = document.getElementById("arucoFiles").files;
+      if (!files.length) {
+        alert("Please upload at least one image for ArUco.");
+        return;
+      }
+
+      const gallery = document.getElementById("arucoGallery");
+      gallery.innerHTML = "<p>Processing...</p>";
+
+      const fd = new FormData();
+      for (let i = 0; i < files.length; i++) {
+        fd.append("images[]", files[i]);
+      }
+
+      try {
+        const res = await fetch("/process_aruco", {
+          method: "POST",
+          body: fd
+        });
+        const json = await res.json();
+
+        if (!res.ok || json.error) {
+          gallery.innerHTML = "<p style='color:red;'>Error: " + (json.error || res.statusText) + "</p>";
+          return;
+        }
+
+        if (!json.images || !json.images.length) {
+          gallery.innerHTML = "<p>No valid images processed.</p>";
+          return;
+        }
+
+        gallery.innerHTML = "";
+        json.images.forEach(b64 => {
+          const card = document.createElement("div");
+          card.className = "aruco-card";
+
+          const img = document.createElement("img");
+          img.src = "data:image/png;base64," + b64;
+
+          card.appendChild(img);
+          gallery.appendChild(card);
+        });
+      } catch (err) {
+        gallery.innerHTML = "<p style='color:red;'>Network error: " + err.message + "</p>";
+      }
+    };
+
+    // 4 — Boundary
+    document.getElementById("runBoundary").onclick = async () => {
+      const files = document.getElementById("boundFiles").files;
+      if (!files.length) {
+        alert("Please upload at least one image for Boundary Detection.");
+        return;
+      }
+
+      const out = document.getElementById("outBoundary");
+      out.src = "";
+      out.alt = "Processing...";
+
+      const fd = new FormData();
+      for (let i = 0; i < files.length; i++) {
+        fd.append("images[]", files[i]);
+      }
+
+      try {
+        const res = await fetch("/process_boundary", {
+          method: "POST",
+          body: fd
+        });
+        const json = await res.json();
+
+        if (!res.ok || json.error) {
+          alert("Error: " + (json.error || res.statusText));
+          return;
+        }
+
+        if (json.image) {
+          out.src = "data:image/png;base64," + json.image;
+          out.alt = "Boundary mosaic";
+        } else {
+          alert("No image returned from server.");
+        }
+      } catch (err) {
+        alert("Network error: " + err.message);
+      }
+    };
+  </script>
+  <script>
+    document.getElementById("runSAM2").onclick = async () => {
+      const gallery = document.getElementById("sam2Gallery");
+      gallery.innerHTML = "<p>Loading SAM2 results...</p>";
+    
+      try {
+        const res = await fetch("/get_sam2_results");
+        const json = await res.json();
+    
+        if (!res.ok || json.error) {
+          gallery.innerHTML = "<p style='color:red;'>Error: " + (json.error || "Failed to load") + "</p>";
+          return;
+        }
+    
+        gallery.innerHTML = "";
+    
+        json.images.forEach(src => {
+          const card = document.createElement("div");
+          card.style.background = "#fff";
+          card.style.padding = "10px";
+          card.style.borderRadius = "10px";
+          card.style.boxShadow = "0px 2px 8px rgba(0,0,0,0.08)";
+    
+          const img = document.createElement("img");
+          img.src = src;
+          img.style.width = "100%";
+          img.style.borderRadius = "8px";
+    
+          card.appendChild(img);
+          gallery.appendChild(card);
+        });
+    
+      } catch (err) {
+        gallery.innerHTML = "<p style='color:red;'>Network error: " + err.message + "</p>";
+      }
+    };
+  </script>
+    
+</body>
+</html> 

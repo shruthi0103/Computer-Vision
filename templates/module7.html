@@ -1,0 +1,419 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>Module 7 – Pose Estimation, Hand Tracking & Calibrated Stereo</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.1/socket.io.js"></script>
+
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background: #f4f7fa;
+            margin: 0;
+            padding: 30px;
+            color: #111827;
+        }
+
+        h1 {
+            text-align: center;
+            color: #1d4ed8;
+            margin-bottom: 30px;
+            font-weight: 700;
+        }
+
+        .card {
+            background: white;
+            border-radius: 14px;
+            padding: 25px 30px;
+            margin-bottom: 35px;
+            box-shadow: 0 4px 14px rgba(0,0,0,0.15);
+        }
+
+        h2 {
+            margin-top: 0;
+            font-size: 22px;
+            margin-bottom: 16px;
+        }
+
+        .hint {
+            font-size: 14px;
+            color: #4b5563;
+            margin-bottom: 18px;
+        }
+
+        .form-grid {
+            display: grid;
+            grid-template-columns: 160px 260px;
+            row-gap: 14px;
+            column-gap: 16px;
+            align-items: center;
+        }
+
+        .form-grid input {
+            padding: 8px 10px;
+            border-radius: 6px;
+            border: 1px solid #cbd5e1;
+            font-size: 14px;
+            width: 100%;
+        }
+
+        .btn-row {
+            margin-top: 20px;
+            display: flex;
+            gap: 12px;
+        }
+
+        button {
+            border: none;
+            border-radius: 8px;
+            padding: 10px 18px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+        }
+
+        .btn-primary {
+            background: #2563eb;
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: #1e40af;
+        }
+
+        .btn-gray {
+            background: #6b7280;
+            color: white;
+        }
+
+        .btn-gray:hover {
+            background: #4b5563;
+        }
+
+        .preview-row {
+            display: flex;
+            gap: 30px;
+            margin-top: 25px;
+        }
+
+        .image-wrapper {
+            position: relative;
+        }
+
+        .preview-image {
+            width: 520px;
+            height: 380px;
+            object-fit: contain;
+            background: #fff;
+            border-radius: 10px;
+            border: 1px solid #d1d5db;
+        }
+
+        .dot {
+            position: absolute;
+            width: 12px;
+            height: 12px;
+            background: red;
+            border-radius: 50%;
+            transform: translate(-50%, -50%);
+        }
+
+        #results {
+            margin-top: 20px;
+            background: #f1f5f9;
+            border-radius: 10px;
+            padding: 14px;
+            border: 1px solid #cbd5e1;
+            min-height: 100px;
+            white-space: pre-wrap;
+            font-family: monospace;
+        }
+
+        .download-link {
+            margin-top: 10px;
+            display: inline-block;
+            color: #2563eb;
+            font-weight: 600;
+            text-decoration: none;
+        }
+        
+        /* New styles for the webcam toggle */
+        #startCamBtn { background: #10b981; color: white; margin-bottom: 10px; }
+        #stopCamBtn { background: #ef4444; color: white; margin-bottom: 10px; display: none; }
+    </style>
+</head>
+
+<body>
+
+<h1>Module 7 – Pose Estimation, Hand Tracking & Calibrated Stereo</h1>
+
+<div class="card">
+    <h2>Pose + Hand Tracking (Live Stream)</h2>
+    
+    <div class="hint">
+        Click "Start Camera" to allow the browser to access your webcam. The frames are sent to the server for processing and returned.
+    </div>
+
+    <button id="startCamBtn">Start Camera</button>
+    <button id="stopCamBtn">Stop Camera</button>
+
+    <video id="videoElement" autoplay playsinline style="display:none;"></video>
+    
+    <canvas id="canvasElement" style="display:none;"></canvas>
+
+    <div style="min-height: 390px;">
+        <img id="processedImage" width="520" style="border-radius:12px; border:1px solid #d1d5db; background: #eee;">
+    </div>
+    
+    <br>
+    <a class="download-link" href="{{ url_for('download_csv_module7') }}">Download CSV</a>
+</div>
+
+<div class="card">
+
+    <h2>Calibrated Stereo 3D Depth Calculation</h2>
+
+    <div class="hint">
+        Enter intrinsics and baseline, upload left & right images, then click
+        <b>4 points</b> on each image (Top-left → Top-right → Bottom-right → Bottom-left).
+    </div>
+
+    <div class="form-grid">
+        <label>fx:</label><input id="fx" type="number" step="0.01">
+        <label>fy:</label><input id="fy" type="number" step="0.01">
+        <label>cx:</label><input id="cx" type="number" step="0.01">
+        <label>cy:</label><input id="cy" type="number" step="0.01">
+        <label>Baseline (cm):</label><input id="baseline" type="number" step="0.01">
+        <label>Left Image:</label><input id="left_input" type="file" accept="image/*">
+        <label>Right Image:</label><input id="right_input" type="file" accept="image/*">
+    </div>
+
+    <div class="btn-row">
+        <button id="start_preview_btn" class="btn-primary">Preview Images</button>
+        <button id="compute_btn" class="btn-primary" disabled>Estimate</button>
+        <button id="reset_btn" class="btn-gray">Reset Points</button>
+    </div>
+
+    <div class="preview-row" id="preview_section" style="display:none;">
+        <div class="image-wrapper" id="left_wrapper">
+            <img id="left_img" class="preview-image">
+        </div>
+        <div class="image-wrapper" id="right_wrapper">
+            <img id="right_img" class="preview-image">
+        </div>
+    </div>
+
+</div>
+
+<div class="card">
+    <h2>Results</h2>
+    <div id="results">No results yet.</div>
+</div>
+
+<div class="tracker-section" style="flex-direction: column; align-items:center;">
+    <h3>📽️ Module 7 – Demo</h3>
+    <div style="width: 100%; max-width: 900px; margin: auto; border-radius: 12px; overflow: hidden; box-shadow: 0px 4px 14px rgba(0,0,0,0.25); background: white;">
+        <iframe src="https://drive.google.com/file/d/1hPuMLwuxrGLlBue0jHGcIXBYQTZBOX-2/preview" allow="autoplay; fullscreen" allowfullscreen style="width: 100%; height: 500px; border: none;"></iframe>
+    </div>
+</div>
+
+<script>
+(function() {
+    // --- 1. WEBSOCKET WEBCAM LOGIC ---
+    const socket = io(); // Connect to Flask-SocketIO
+    const video = document.getElementById("videoElement");
+    const canvas = document.getElementById("canvasElement");
+    const ctx = canvas.getContext("2d");
+    const processedImage = document.getElementById("processedImage");
+    const startBtn = document.getElementById("startCamBtn");
+    const stopBtn = document.getElementById("stopCamBtn");
+    
+    let intervalId = null;
+    let streamRef = null;
+
+    startBtn.addEventListener('click', () => {
+        if (navigator.mediaDevices.getUserMedia) {
+            navigator.mediaDevices.getUserMedia({ video: true })
+                .then(function (stream) {
+                    streamRef = stream;
+                    video.srcObject = stream;
+                    startBtn.style.display = 'none';
+                    stopBtn.style.display = 'inline-block';
+                    
+                    video.onplay = () => {
+                        // Send a frame every 100ms (10 FPS)
+                        intervalId = setInterval(() => {
+                            sendFrame();
+                        }, 100); 
+                    };
+                })
+                .catch(function (error) {
+                    console.log("Something went wrong with the webcam!", error);
+                    alert("Could not access webcam.");
+                });
+        }
+    });
+
+    stopBtn.addEventListener('click', () => {
+        if (intervalId) clearInterval(intervalId);
+        if (streamRef) {
+            streamRef.getTracks().forEach(track => track.stop());
+        }
+        startBtn.style.display = 'inline-block';
+        stopBtn.style.display = 'none';
+        processedImage.src = ""; // Clear image
+    });
+
+    function sendFrame() {
+        if (!video.videoWidth) return;
+        
+        canvas.width = video.videoWidth;
+        canvas.height = video.videoHeight;
+        
+        // Draw video frame to canvas
+        ctx.drawImage(video, 0, 0, video.videoWidth, video.videoHeight);
+        
+        // Convert to Base64 jpg (0.5 quality for speed)
+        const data = canvas.toDataURL('image/jpeg', 0.5); 
+        
+        // Emit to Python server
+        socket.emit('image', data);
+    }
+
+    // Receive processed frame from Python
+    socket.on('response_back', function(image_data) {
+        processedImage.src = image_data;
+    });
+
+
+    // --- 2. STEREO LOGIC (Unchanged, just route updated) ---
+    let leftPoints = [];
+    let rightPoints = [];
+
+    const leftInput = document.getElementById('left_input');
+    const rightInput = document.getElementById('right_input');
+    const leftImg = document.getElementById('left_img');
+    const rightImg = document.getElementById('right_img');
+    const previewSection = document.getElementById('preview_section');
+    const startPreviewBtn = document.getElementById('start_preview_btn');
+    const computeBtn = document.getElementById('compute_btn');
+    const resetBtn = document.getElementById('reset_btn');
+    const resultsDiv = document.getElementById('results');
+    const leftWrapper = document.getElementById('left_wrapper');
+    const rightWrapper = document.getElementById('right_wrapper');
+
+    function clearDots(wrapper) {
+        wrapper.querySelectorAll('.dot').forEach(d => d.remove());
+    }
+
+    function enableComputeIfReady() {
+        computeBtn.disabled = !(leftPoints.length === 4 && rightPoints.length === 4);
+    }
+
+    function getOriginalCoords(imgTag, clickX, clickY) {
+        const rect = imgTag.getBoundingClientRect();
+        const imgAspect = imgTag.naturalWidth / imgTag.naturalHeight;
+        const boxAspect = rect.width / rect.height;
+
+        let origX, origY;
+
+        if (imgAspect > boxAspect) {
+            const displayHeight = rect.width / imgAspect;
+            const padY = (rect.height - displayHeight) / 2;
+            origX = (clickX / rect.width) * imgTag.naturalWidth;
+            origY = ((clickY - padY) / displayHeight) * imgTag.naturalHeight;
+        } else {
+            const displayWidth = rect.height * imgAspect;
+            const padX = (rect.width - displayWidth) / 2;
+            origX = ((clickX - padX) / displayWidth) * imgTag.naturalWidth;
+            origY = (clickY / rect.height) * imgTag.naturalHeight;
+        }
+
+        return [origX, origY];
+    }
+
+    function imageClickHandler(imgTag, wrapper, pointsArray) {
+        return function(e) {
+            if (!imgTag.naturalWidth || !imgTag.naturalHeight) return;
+            if (pointsArray.length >= 4) return;
+
+            const rect = imgTag.getBoundingClientRect();
+            const displayX = e.clientX - rect.left;
+            const displayY = e.clientY - rect.top;
+
+            const [origX, origY] = getOriginalCoords(imgTag, displayX, displayY);
+            pointsArray.push([origX, origY]);
+
+            const dot = document.createElement('div');
+            dot.className = 'dot';
+            dot.style.left = displayX + 'px';
+            dot.style.top = displayY + 'px';
+            wrapper.appendChild(dot);
+
+            enableComputeIfReady();
+        };
+    }
+
+    startPreviewBtn.addEventListener('click', () => {
+        if (!leftInput.files[0] || !rightInput.files[0]) {
+            alert("Upload both images first.");
+            return;
+        }
+
+        leftPoints = [];
+        rightPoints = [];
+        clearDots(leftWrapper);
+        clearDots(rightWrapper);
+        computeBtn.disabled = true;
+        resultsDiv.textContent = "No results yet.";
+
+        leftImg.src = URL.createObjectURL(leftInput.files[0]);
+        rightImg.src = URL.createObjectURL(rightInput.files[0]);
+        previewSection.style.display = "flex";
+
+        leftImg.onclick = null;
+        rightImg.onclick = null;
+        leftImg.addEventListener('click', imageClickHandler(leftImg, leftWrapper, leftPoints));
+        rightImg.addEventListener('click', imageClickHandler(rightImg, rightWrapper, rightPoints));
+    });
+
+    resetBtn.addEventListener('click', () => {
+        leftPoints = [];
+        rightPoints = [];
+        clearDots(leftWrapper);
+        clearDots(rightWrapper);
+        computeBtn.disabled = true;
+        resultsDiv.textContent = "No results yet.";
+    });
+
+    computeBtn.addEventListener('click', async () => {
+        const fx = document.getElementById('fx').value;
+        const fy = document.getElementById('fy').value;
+        const cx = document.getElementById('cx').value;
+        const cy = document.getElementById('cy').value;
+        const baseline = document.getElementById('baseline').value;
+
+        const fd = new FormData();
+        fd.append('fx', fx);
+        fd.append('fy', fy);
+        fd.append('cx', cx);
+        fd.append('cy', cy);
+        fd.append('baseline', baseline);
+        fd.append('left_points', JSON.stringify(leftPoints));
+        fd.append('right_points', JSON.stringify(rightPoints));
+        fd.append('left_image', leftInput.files[0]);
+        fd.append('right_image', rightInput.files[0]);
+
+        resultsDiv.textContent = "Computing...";
+
+        // NOTE: Updated this to match the Python route name '/module7_calc'
+        const resp = await fetch('/module7_calc', { method: 'POST', body: fd });
+        const text = await resp.text();
+        resultsDiv.textContent = text;
+    });
+
+})();
+</script>
+
+</body>
+</html>

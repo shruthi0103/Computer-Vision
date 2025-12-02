@@ -1,0 +1,85 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Assignments Portal</title>
+
+  <style>
+    body {
+      font-family: 'Inter', system-ui, Arial, sans-serif;
+      background: #f3f4f6;
+      margin: 0;
+      padding: 0;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+    }
+
+    .container {
+      background: white;
+      padding: 40px 50px;
+      border-radius: 16px;
+      box-shadow: 0 6px 22px rgba(0,0,0,0.12);
+      text-align: center;
+      width: 400px;
+      animation: fadeIn 0.4s ease;
+    }
+
+    h2 {
+      font-size: 26px;
+      margin-bottom: 10px;
+      color: #111827;
+      font-weight: 600;
+    }
+
+    p {
+      color: #374151;
+      margin-bottom: 30px;
+      font-size: 15px;
+    }
+
+    button {
+      width: 100%;
+      padding: 14px 18px;
+      margin: 8px 0;
+      background: #2563eb;
+      color: white;
+      border: none;
+      border-radius: 10px;
+      cursor: pointer;
+      font-size: 16px;
+      font-weight: 600;
+      transition: background 0.2s ease, transform 0.2s ease;
+    }
+
+    button:hover {
+      background: #1e40af;
+      transform: translateY(-2px);
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(10px); }
+      to   { opacity: 1; transform: translateY(0);   }
+    }
+  </style>
+
+</head>
+
+<body>
+
+  <div class="container">
+    <h2>Computer Vision Assignments</h2>
+    <p>Select a module to open:</p>
+
+    <button onclick="location.href='/module1'">Module 1</button>
+    <button onclick="location.href='/module2'">Module 2</button>
+    <button onclick="location.href='/module3'">Module 3</button>
+    <button onclick="location.href='/module4'">Module 4</button>
+    <button onclick="location.href='/module6'">Module 5 and 6</button>
+    <button onclick="location.href='/module7'">Module 7</button>
+    <p>Demo video of each module is available at the bottom of every page!</p>
+  </div>
+  
+</body>
+</html>

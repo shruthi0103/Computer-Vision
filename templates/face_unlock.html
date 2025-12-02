@@ -1,0 +1,247 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Face Unlock – CSC 8830</title>
+
+  <style>
+    body {
+      font-family: "Segoe UI", Arial, sans-serif;
+      margin: 0;
+      padding: 0;
+      background: #f2f4f7;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+
+    /* Header */
+    .header {
+      width: 100%;
+      background: #1e3a8a;
+      color: white;
+      padding: 20px 0;
+      text-align: center;
+      font-size: 26px;
+      font-weight: bold;
+      letter-spacing: 0.5px;
+      box-shadow: 0px 3px 8px rgba(0,0,0,0.15);
+    }
+
+    /* Main Container Card */
+    .container {
+      margin-top: 40px;
+      background: white;
+      width: 420px;
+      padding: 30px;
+      border-radius: 16px;
+      box-shadow: 0px 4px 18px rgba(0,0,0,0.12);
+      text-align: center;
+    }
+
+    h2 {
+      margin-bottom: 15px;
+      color: #111827;
+      font-size: 22px;
+    }
+
+    video.camera {
+      border: 2px solid #444;
+      border-radius: 10px;
+      margin-bottom: 12px;
+      width: 360px;
+    }
+
+    button {
+      padding: 12px 18px;
+      margin-top: 12px;
+      margin-bottom: 4px;
+      width: 80%;
+      background: #2563eb;
+      color: white;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 16px;
+      font-weight: 600;
+      transition: 0.15s ease;
+    }
+
+    button:hover { background: #1e40af; }
+
+    #directBtn {
+      background: #6b7280;
+    }
+    #directBtn:hover {
+      background: #4b5563;
+    }
+
+    #faceMsg {
+      margin-top: 15px;
+      font-size: 16px;
+      color: #374151;
+      white-space: pre-wrap;
+      height: 40px;
+    }
+
+    /* Footer */
+    .footer {
+      margin-top: 40px;
+      padding: 18px;
+      font-size: 15px;
+      color: #555;
+      text-align: center;
+      line-height: 1.6;
+      border-top: 1px solid #ddd;
+      width: 100%;
+    }
+
+    /* Demo Section */
+    .demo-section {
+      width: 100%;
+      margin-top: 60px;
+      padding-bottom: 40px;
+      text-align: center;
+    }
+
+    .demo-section h2 {
+      margin-bottom: 14px;
+      font-size: 22px;
+      color: #1e40af;
+    }
+  </style>
+</head>
+
+<body>
+
+  <!-- Header -->
+  <div class="header">CSC 8830 – Computer Vision</div>
+
+  <!-- Main Login Card -->
+  <div class="container">
+
+    <h2>Face Unlock</h2>
+    <h4>Demo available at the bottom!</h4>
+
+    <video id="video" class="camera" autoplay playsinline></video>
+    <canvas id="captureCanvas" width="360" height="270" style="display:none;"></canvas>
+
+    <button id="startCamBtn">Start Camera</button>
+    <button id="captureAuthBtn">Unlock</button>
+
+    <div id="faceMsg"></div>
+
+    <hr style="margin: 25px auto; width: 70%; border: none; border-top: 1px solid #ddd;">
+
+    <button id="directBtn">Skip & Enter Manually</button>
+
+  </div>
+
+  <!-- Footer -->
+  <div class="footer">
+    <b>Shruthi Ledalla</b><br>
+    Panther ID: <b>002821933</b><br>
+    MS in Computer Science<br>
+    Georgia State University
+  </div>
+
+  <!-- ✅ CLEAN GOOGLE DRIVE DEMO VIDEO -->
+  <div class="demo-section">
+    <h2>📽️ Face Unlock – Demo Video</h2>
+
+    <div style="
+      width: 100%;
+      max-width: 900px;
+      margin: auto;
+      border-radius: 12px;
+      overflow: hidden;
+      box-shadow: 0px 4px 14px rgba(0,0,0,0.25);
+    ">
+      <iframe
+        src="https://drive.google.com/file/d/16UIVinVMTLo-7BliIVr-I_7utRVinLLC/preview"
+        allow="autoplay; fullscreen"
+        allowfullscreen
+        style="
+          width: 100%;
+          height: 500px;
+          border: none;
+        ">
+      </iframe>
+    </div>
+  </div>
+
+  <!-- ✅ ORIGINAL JS (UNCHANGED) -->
+  <script>
+    const startCamBtn = document.getElementById("startCamBtn");
+    const captureAuthBtn = document.getElementById("captureAuthBtn");
+    const directBtn = document.getElementById("directBtn");
+    const video = document.getElementById("video");
+    const captureCanvas = document.getElementById("captureCanvas");
+    const faceMsg = document.getElementById("faceMsg");
+
+    let stream = null;
+
+    startCamBtn.addEventListener("click", async () => {
+      try {
+        if (stream) {
+          stream.getTracks().forEach(t => t.stop());
+          stream = null;
+          video.srcObject = null;
+          startCamBtn.textContent = "Start Camera";
+          return;
+        }
+
+        stream = await navigator.mediaDevices.getUserMedia({ video: true });
+        video.srcObject = stream;
+        startCamBtn.textContent = "Stop Camera";
+
+      } catch (err) {
+        alert("Cannot open camera: " + err);
+      }
+    });
+
+    captureAuthBtn.addEventListener("click", async () => {
+      if (!stream) {
+        alert("Start camera first");
+        return;
+      }
+
+      const ctx = captureCanvas.getContext("2d");
+      captureCanvas.width = video.videoWidth || 360;
+      captureCanvas.height = video.videoHeight || 270;
+      ctx.drawImage(video, 0, 0, captureCanvas.width, captureCanvas.height);
+
+      const blob = await new Promise(r => captureCanvas.toBlob(r, "image/png"));
+      const fd = new FormData();
+      fd.append("image", blob, "capture.png");
+
+      faceMsg.textContent = "Checking face...";
+
+      try {
+        const resp = await fetch("/auth_face", { method: "POST", body: fd });
+        const j = await resp.json();
+
+        if (!resp.ok) {
+          faceMsg.textContent = "Error: " + (j.error || JSON.stringify(j));
+          return;
+        }
+
+        if (j.match) {
+          faceMsg.textContent = "✅ Access Granted";
+          setTimeout(() => { window.location.href = "/home"; }, 800);
+        } else {
+          faceMsg.textContent = "❌ Not recognized";
+        }
+
+      } catch (err) {
+        faceMsg.textContent = "Request failed: " + err;
+      }
+    });
+
+    directBtn.addEventListener("click", () => {
+      window.location.href = "/skip_login";
+    });
+  </script>
+
+</body>
+</html>

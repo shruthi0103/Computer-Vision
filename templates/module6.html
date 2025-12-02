@@ -1,0 +1,216 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>Module 6 – Motion Tracking</title>
+
+    <style>
+        body {
+            font-family: "Inter", Arial, sans-serif;
+            padding: 25px;
+            background: #f4f6fa;
+            color: #1e293b;
+        }
+
+        h2 {
+            text-align: center;
+            font-size: 32px;
+            margin-bottom: 30px;
+            font-weight: 700;
+            color: #1e40af;
+        }
+
+        .tracker-section {
+            background: white;
+            padding: 25px;
+            margin-bottom: 35px;
+            border-radius: 14px;
+            box-shadow: 0 3px 10px rgba(0,0,0,0.08);
+            display: flex;
+            gap: 25px;
+            align-items: flex-start;
+        }
+
+        button {
+            background: #2563eb;
+            color: white;
+            border: none;
+            padding: 12px 18px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 15px;
+            font-weight: 600;
+            transition: 0.2s;
+        }
+
+        button:hover {
+            background: #1e40af;
+        }
+
+        video, img {
+            border-radius: 10px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.12);
+        }
+
+        video {
+            width: 320px;
+        }
+
+        img {
+            width: 320px;
+            height: auto;
+            background: #e2e8f0;
+        }
+
+        .label {
+            margin-top: 12px;
+            font-weight: 600;
+            color: #334155;
+        }
+
+        .logs {
+            width: 320px;
+            height: 320px;
+            overflow-y: auto;
+            background: #f1f5f9;
+            border: 1px solid #cbd5e1;
+            padding: 12px;
+            border-radius: 8px;
+            font-family: monospace;
+            font-size: 14px;
+            white-space: pre-wrap;
+        }
+
+        #sam2Stream {
+            margin-top: 20px;
+            border-radius: 12px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.12);
+        }
+    </style>
+</head>
+
+<body>
+
+<h2>Module 6 – Motion Tracking</h2>
+
+<!-- ======================= Markerless Tracker ======================= -->
+<div class="tracker-section">
+
+    <!-- Column 1 -->
+    <div>
+        <button onclick="startMarkerless()">Run Markerless Tracker</button>
+
+        <p class="label">Original Video</p>
+        <video controls autoplay loop>
+            <source src="/static/motion.mp4" type="video/mp4">
+        </video>
+    </div>
+
+    <!-- Column 2 -->
+    <div>
+        <p class="label">Markerless Tracker Output</p>
+        <img id="trackedMarkerless" />
+    </div>
+
+    <!-- Column 3 -->
+    <div>
+        <p class="label">Progress Logs</p>
+        <div id="logsMarkerless" class="logs"></div>
+    </div>
+
+</div>
+
+<!-- ======================= ArUco Tracker ======================= -->
+<div class="tracker-section">
+
+    <!-- Column 1 -->
+    <div>
+        <button onclick="startAruco()">Run ArUco Tracker</button>
+
+        <p class="label">Original Video</p>
+        <video controls autoplay loop>
+            <source src="/static/aruco_video.mp4" type="video/mp4">
+        </video>
+    </div>
+
+    <!-- Column 2 -->
+    <div>
+        <p class="label">ArUco Tracker Output</p>
+        <img id="trackedAruco" />
+    </div>
+
+    <!-- Column 3 -->
+    <div>
+        <p class="label">Progress Logs</p>
+        <div id="logsAruco" class="logs"></div>
+    </div>
+
+</div>
+
+<!-- ======================= SAM2 Tracker ======================= -->
+<div class="tracker-section" style="flex-direction: column; align-items:center;">
+
+    <button onclick="startSAM2()" style="width:200px;">Run SAM2 Tracker</button>
+    <img id="sam2Stream" width="550">
+</div>
+
+<div class="container">
+    <section class="card p-4 mt-5 text-center">
+      <h4 class="mb-3">📽️ Module 5 & 6 – Demo</h4>
+  
+      <div style="
+        width: 100%;
+        max-width: 900px;
+        margin: auto;
+        border-radius: 12px;
+        overflow: hidden;
+        box-shadow: 0px 4px 14px rgba(0,0,0,0.25);
+      ">
+        <iframe
+          src="https://drive.google.com/file/d/1EBIkKHxrnB3ATh7yHoeA-o-Q-vDJxZ-V/preview"
+          allow="autoplay; fullscreen"
+          allowfullscreen
+          style="
+            width: 100%;
+            height: 500px;
+            border: none;
+          ">
+        </iframe>
+      </div>
+  
+    </section>
+</div>
+  
+  
+  
+<!-- ======================= JS (unchanged) ======================= -->
+<script>
+function startSAM2() {
+    document.getElementById("sam2Stream").src = "/stream_sam2?" + new Date().getTime();
+}
+
+function startMarkerless() {
+    document.getElementById("trackedMarkerless").src = "/video_feed_markerless";
+
+    const evt = new EventSource("/checkpoints_markerless");
+    evt.onmessage = e => {
+        const logDiv = document.getElementById("logsMarkerless");
+        logDiv.innerHTML += e.data + "\n";
+        logDiv.scrollTop = logDiv.scrollHeight;
+    };
+}
+
+function startAruco() {
+    document.getElementById("trackedAruco").src = "/video_feed_aruco";
+
+    const evt = new EventSource("/checkpoints_aruco");
+    evt.onmessage = e => {
+        const logDiv = document.getElementById("logsAruco");
+        logDiv.innerHTML += e.data + "\n";
+        logDiv.scrollTop = logDiv.scrollHeight;
+    };
+}
+</script>
+
+</body>
+</html>
