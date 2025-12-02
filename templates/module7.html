@@ -2,9 +2,7 @@
 <html>
 <head>
     <meta charset="utf-8">
-    <title>Module 7 – Pose Estimation, Hand Tracking & Calibrated Stereo</title>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.1/socket.io.js"></script>
-
+    <title>Module 7 – Pose Estimation & Stereo</title>
     <style>
         body {
             font-family: Arial, sans-serif;
@@ -41,6 +39,7 @@
             margin-bottom: 18px;
         }
 
+        /* Form & Inputs */
         .form-grid {
             display: grid;
             grid-template-columns: 160px 260px;
@@ -48,7 +47,6 @@
             column-gap: 16px;
             align-items: center;
         }
-
         .form-grid input {
             padding: 8px 10px;
             border-radius: 6px;
@@ -57,12 +55,12 @@
             width: 100%;
         }
 
+        /* Buttons */
         .btn-row {
             margin-top: 20px;
             display: flex;
             gap: 12px;
         }
-
         button {
             border: none;
             border-radius: 8px;
@@ -71,35 +69,21 @@
             font-weight: 600;
             cursor: pointer;
         }
+        .btn-primary { background: #2563eb; color: white; }
+        .btn-primary:hover { background: #1e40af; }
+        .btn-gray { background: #6b7280; color: white; }
+        .btn-gray:hover { background: #4b5563; }
+        
+        #startCamBtn { background: #10b981; color: white; margin-bottom: 10px; }
+        #stopCamBtn { background: #ef4444; color: white; margin-bottom: 10px; display: none; }
 
-        .btn-primary {
-            background: #2563eb;
-            color: white;
-        }
-
-        .btn-primary:hover {
-            background: #1e40af;
-        }
-
-        .btn-gray {
-            background: #6b7280;
-            color: white;
-        }
-
-        .btn-gray:hover {
-            background: #4b5563;
-        }
-
+        /* Stereo Preview */
         .preview-row {
             display: flex;
             gap: 30px;
             margin-top: 25px;
         }
-
-        .image-wrapper {
-            position: relative;
-        }
-
+        .image-wrapper { position: relative; }
         .preview-image {
             width: 520px;
             height: 380px;
@@ -108,7 +92,6 @@
             border-radius: 10px;
             border: 1px solid #d1d5db;
         }
-
         .dot {
             position: absolute;
             width: 12px;
@@ -118,6 +101,7 @@
             transform: translate(-50%, -50%);
         }
 
+        /* Results & Status */
         #results {
             margin-top: 20px;
             background: #f1f5f9;
@@ -128,7 +112,6 @@
             white-space: pre-wrap;
             font-family: monospace;
         }
-
         .download-link {
             margin-top: 10px;
             display: inline-block;
@@ -136,10 +119,11 @@
             font-weight: 600;
             text-decoration: none;
         }
-        
-        /* New styles for the webcam toggle */
-        #startCamBtn { background: #10b981; color: white; margin-bottom: 10px; }
-        #stopCamBtn { background: #ef4444; color: white; margin-bottom: 10px; display: none; }
+        #camStatus {
+            font-weight: bold;
+            margin-left: 10px;
+            font-size: 14px;
+        }
     </style>
 </head>
 
@@ -151,14 +135,14 @@
     <h2>Pose + Hand Tracking (Live Stream)</h2>
     
     <div class="hint">
-        Click "Start Camera" to allow the browser to access your webcam. The frames are sent to the server for processing and returned.
+        Click "Start Camera". Frames are sent via HTTP POST to ensure stability on free cloud servers.
+        <span id="camStatus" style="color:#666;">Ready</span>
     </div>
 
     <button id="startCamBtn">Start Camera</button>
     <button id="stopCamBtn">Stop Camera</button>
 
     <video id="videoElement" autoplay playsinline style="display:none;"></video>
-    
     <canvas id="canvasElement" style="display:none;"></canvas>
 
     <div style="min-height: 390px;">
@@ -170,9 +154,7 @@
 </div>
 
 <div class="card">
-
     <h2>Calibrated Stereo 3D Depth Calculation</h2>
-
     <div class="hint">
         Enter intrinsics and baseline, upload left & right images, then click
         <b>4 points</b> on each image (Top-left → Top-right → Bottom-right → Bottom-left).
@@ -202,7 +184,6 @@
             <img id="right_img" class="preview-image">
         </div>
     </div>
-
 </div>
 
 <div class="card">
@@ -213,80 +194,108 @@
 <div class="tracker-section" style="flex-direction: column; align-items:center;">
     <h3>📽️ Module 7 – Demo</h3>
     <div style="width: 100%; max-width: 900px; margin: auto; border-radius: 12px; overflow: hidden; box-shadow: 0px 4px 14px rgba(0,0,0,0.25); background: white;">
-        <iframe src="https://drive.google.com/file/d/1hPuMLwuxrGLlBue0jHGcIXBYQTZBOX-2/preview" allow="autoplay; fullscreen" allowfullscreen style="width: 100%; height: 500px; border: none;"></iframe>
+        <iframe src="https://drive.google.com/file/d/1hPuMLwuxrGLlBue0jHGcIXBYQTZBOX-2/preview" allow="autoplay; fullscreen" style="width: 100%; height: 500px; border: none;"></iframe>
     </div>
 </div>
 
 <script>
 (function() {
-    // --- 1. WEBSOCKET WEBCAM LOGIC ---
-    const socket = io(); // Connect to Flask-SocketIO
+    // =========================================================
+    // PART 1: WEBCAM LOGIC (HTTP POST - NO SOCKETS)
+    // =========================================================
     const video = document.getElementById("videoElement");
     const canvas = document.getElementById("canvasElement");
     const ctx = canvas.getContext("2d");
     const processedImage = document.getElementById("processedImage");
     const startBtn = document.getElementById("startCamBtn");
     const stopBtn = document.getElementById("stopCamBtn");
+    const statusLabel = document.getElementById("camStatus");
     
-    let intervalId = null;
-    let streamRef = null;
+    let isStreaming = false;
 
-    startBtn.addEventListener('click', () => {
-        if (navigator.mediaDevices.getUserMedia) {
-            navigator.mediaDevices.getUserMedia({ video: true })
-                .then(function (stream) {
-                    streamRef = stream;
-                    video.srcObject = stream;
-                    startBtn.style.display = 'none';
-                    stopBtn.style.display = 'inline-block';
-                    
-                    video.onplay = () => {
-                        // Send a frame every 100ms (10 FPS)
-                        intervalId = setInterval(() => {
-                            sendFrame();
-                        }, 100); 
-                    };
-                })
-                .catch(function (error) {
-                    console.log("Something went wrong with the webcam!", error);
-                    alert("Could not access webcam.");
-                });
+    startBtn.addEventListener('click', async () => {
+        try {
+            // Request low resolution to save bandwidth/RAM
+            const stream = await navigator.mediaDevices.getUserMedia({ 
+                video: { width: 320, height: 240 } 
+            });
+            
+            video.srcObject = stream;
+            
+            // Wait for video to actually start playing
+            video.onplay = () => {
+                isStreaming = true;
+                startBtn.style.display = 'none';
+                stopBtn.style.display = 'inline-block';
+                statusLabel.innerText = "Streaming active...";
+                statusLabel.style.color = "green";
+                
+                // Start the frame loop
+                processFrameLoop();
+            };
+        } catch (error) {
+            console.error("Webcam Error:", error);
+            alert("Could not access webcam. Make sure you are using HTTPS.");
         }
     });
 
     stopBtn.addEventListener('click', () => {
-        if (intervalId) clearInterval(intervalId);
-        if (streamRef) {
-            streamRef.getTracks().forEach(track => track.stop());
+        isStreaming = false;
+        if (video.srcObject) {
+            video.srcObject.getTracks().forEach(track => track.stop());
         }
         startBtn.style.display = 'inline-block';
         stopBtn.style.display = 'none';
-        processedImage.src = ""; // Clear image
+        processedImage.src = ""; 
+        statusLabel.innerText = "Stopped";
+        statusLabel.style.color = "#666";
     });
 
-    function sendFrame() {
-        if (!video.videoWidth) return;
+    async function processFrameLoop() {
+        if (!isStreaming) return;
+
+        // 1. Draw video frame to small canvas
+        if (video.videoWidth === 0) {
+            requestAnimationFrame(processFrameLoop);
+            return;
+        }
         
-        canvas.width = video.videoWidth;
-        canvas.height = video.videoHeight;
+        canvas.width = 320; 
+        canvas.height = 240;
+        ctx.drawImage(video, 0, 0, 320, 240);
         
-        // Draw video frame to canvas
-        ctx.drawImage(video, 0, 0, video.videoWidth, video.videoHeight);
-        
-        // Convert to Base64 jpg (0.5 quality for speed)
-        const data = canvas.toDataURL('image/jpeg', 0.5); 
-        
-        // Emit to Python server
-        socket.emit('image', data);
+        // 2. Convert to Base64 (Low quality for speed)
+        const dataUrl = canvas.toDataURL('image/jpeg', 0.5);
+
+        try {
+            // 3. Send to Server via simple POST
+            const response = await fetch('/process_frame', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ image: dataUrl })
+            });
+
+            if (response.ok) {
+                const result = await response.json();
+                if (result.image) {
+                    processedImage.src = result.image;
+                }
+            }
+        } catch (err) {
+            console.log("Frame drop:", err);
+        }
+
+        // 4. Loop. Using setTimeout to control FPS (~5-10 FPS)
+        // Adjust 100ms to 200ms if server is slow
+        if (isStreaming) {
+            setTimeout(processFrameLoop, 100); 
+        }
     }
 
-    // Receive processed frame from Python
-    socket.on('response_back', function(image_data) {
-        processedImage.src = image_data;
-    });
 
-
-    // --- 2. STEREO LOGIC (Unchanged, just route updated) ---
+    // =========================================================
+    // PART 2: STEREO CALCULATION LOGIC (UNCHANGED)
+    // =========================================================
     let leftPoints = [];
     let rightPoints = [];
 
@@ -328,7 +337,6 @@
             origX = ((clickX - padX) / displayWidth) * imgTag.naturalWidth;
             origY = (clickY / rect.height) * imgTag.naturalHeight;
         }
-
         return [origX, origY];
     }
 
@@ -359,7 +367,6 @@
             alert("Upload both images first.");
             return;
         }
-
         leftPoints = [];
         rightPoints = [];
         clearDots(leftWrapper);
@@ -406,7 +413,6 @@
 
         resultsDiv.textContent = "Computing...";
 
-        // NOTE: Updated this to match the Python route name '/module7_calc'
         const resp = await fetch('/module7_calc', { method: 'POST', body: fd });
         const text = await resp.text();
         resultsDiv.textContent = text;
