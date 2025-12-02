@@ -3,8 +3,9 @@ import base64
 import json
 import time
 import io
+import gc  # Added explicit import for garbage collection
 from flask import Flask, request, render_template, jsonify, redirect, session, send_file, Response
-from flask_socketio import SocketIO, emit
+from flask_cors import CORS # Ensure flask-cors is in requirements.txt
 
 # -------------------------
 # Setup
@@ -17,12 +18,10 @@ os.makedirs(os.path.join("static", "mod2", "temps"), exist_ok=True)
 os.makedirs(os.path.join("static", "marker"), exist_ok=True)
 
 app = Flask(__name__, static_folder="static", template_folder="templates")
+CORS(app) # Enable CORS to allow your frontend to send POST requests freely
 app.config["UPLOAD_FOLDER"] = UPLOAD_FOLDER
 app.config["MAX_CONTENT_LENGTH"] = 200 * 1024 * 1024
 app.secret_key = "supersecretkey"
-
-# Initialize SocketIO
-socketio = SocketIO(app, cors_allowed_origins="*")
 
 # -------------------------
 # Helpers
@@ -39,9 +38,6 @@ def read_image_from_bytes(file_storage):
     arr = np.frombuffer(data, dtype=np.uint8)
     return cv2.imdecode(arr, cv2.IMREAD_COLOR)
 
-# -------------------------
-# Root & Auth (MOCKED FOR STABILITY)
-# -------------------------
 # -------------------------
 # Root & Auth (MOCKED FOR STABILITY)
 # -------------------------
@@ -82,7 +78,7 @@ def logout():
     return redirect("/")
 
 # -------------------------
-# Module 1: Camera Calibration (FULL LOGIC RESTORED)
+# Module 1: Camera Calibration
 # -------------------------
 @app.route("/module1")
 def module1():
@@ -253,7 +249,7 @@ def reconstruct_route():
     return jsonify({"image": base64.b64encode(buf).decode("ascii")})
 
 # -------------------------
-# Module 3: Image Processing (ALL 4 SUB-MODULES)
+# Module 3: Image Processing
 # -------------------------
 @app.route("/module3")
 def module3(): return render_template("module3.html")
@@ -442,13 +438,12 @@ def process_boundary():
     
     target_width = 350
     resized = [cv2.resize(r, (target_width, int(r.shape[0]*target_width/r.shape[1]))) for r in results]
-    # Simple vertical stack for safety
     final = np.vstack(resized)
     _, buf = cv2.imencode(".png", final)
     return jsonify({"image": base64.b64encode(buf).decode("ascii")})
 
 # -------------------------
-# Module 4: Stitching (FULL LOGIC)
+# Module 4: Stitching
 # -------------------------
 @app.route("/module4")
 def module4(): return render_template("module4.html")
@@ -459,7 +454,6 @@ def process_stitch():
     
     pano_folder = os.path.join(app.config["UPLOAD_FOLDER"], "panorama")
     if not os.path.exists(pano_folder): 
-        # Create folder if missing to prevent crash
         os.makedirs(pano_folder, exist_ok=True)
         return jsonify({"error": "No images in uploads/panorama folder"}), 400
     
@@ -486,7 +480,6 @@ def process_stitch():
 
     _, buf = cv2.imencode(".jpg", panorama)
     
-    # Thumbnails
     thumbs = []
     for img in images:
         _, tbuf = cv2.imencode(".jpg", cv2.resize(img, (200,120)))
@@ -512,7 +505,6 @@ def process_sift():
     folder = os.path.join(app.config['UPLOAD_FOLDER'], "sift_images")
     if not os.path.exists(folder): return jsonify({"error": "sift_images folder missing"})
     
-    # Try to load images
     p1 = os.path.join(folder, "1.jpeg")
     p2 = os.path.join(folder, "5.jpeg")
     if not os.path.exists(p1) or not os.path.exists(p2):
@@ -545,28 +537,25 @@ def process_sift():
     return jsonify({"opencv": base64.b64encode(buf).decode("utf-8"), "custom": ""})
 
 # -------------------------
-# Module 7: SocketIO Pose Tracking
+# Module 7: Pose Tracking (HTTP POST)
 # -------------------------
-
-# Lazy Globals
 mp_holistic = None
 mp_drawing = None
 holistic_net = None
-
 CSV_FILENAME = None
-csv_writer = None
 
 def get_model():
     """Lazy loader to prevent startup crash"""
     global mp_holistic, mp_drawing, holistic_net
     if holistic_net is None:
-        print("Loading MediaPipe...")
+        print("Loading MediaPipe (Lazy)...")
         import mediapipe as mp
         mp_holistic = mp.solutions.holistic
         mp_drawing = mp.solutions.drawing_utils
+        # Use LITE model to save RAM
         holistic_net = mp_holistic.Holistic(
             static_image_mode=False,
-            model_complexity=0, # Lite model
+            model_complexity=0, 
             smooth_landmarks=True
         )
     return holistic_net, mp_drawing, mp_holistic
@@ -580,53 +569,63 @@ def download_csv_module7():
         return send_file(CSV_FILENAME, as_attachment=True)
     return "No CSV generated yet", 404
 
-@socketio.on('image')
-def handle_image(data_image):
+# --- THE NEW HTTP POST ROUTE ---
+@app.route('/process_frame', methods=['POST'])
+def process_frame():
     import numpy as np
     import cv2
-    import csv
     import gc
-    global csv_writer, CSV_FILENAME
+    global CSV_FILENAME
 
     try:
-        header, encoded = data_image.split(",", 1)
-        data = base64.b64decode(encoded)
-        np_arr = np.frombuffer(data, np.uint8)
+        data = request.json
+        image_data = data.get('image')
+        
+        # Decode Base64
+        header, encoded = image_data.split(",", 1)
+        binary = base64.b64decode(encoded)
+        np_arr = np.frombuffer(binary, np.uint8)
         frame = cv2.imdecode(np_arr, cv2.IMREAD_COLOR)
-        if frame is None: return
-    except: return
+        
+        if frame is None: 
+            return jsonify({"error": "Empty frame"}), 400
 
-    model, drawing, mp_ref = get_model()
-    image_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-    results = model.process(image_rgb)
-    
-    if results.pose_landmarks:
-        drawing.draw_landmarks(frame, results.pose_landmarks, mp_ref.POSE_CONNECTIONS)
-    if results.left_hand_landmarks:
-        drawing.draw_landmarks(frame, results.left_hand_landmarks, mp_ref.HAND_CONNECTIONS)
-    if results.right_hand_landmarks:
-        drawing.draw_landmarks(frame, results.right_hand_landmarks, mp_ref.HAND_CONNECTIONS)
+        # Process
+        model, drawing, mp_ref = get_model()
+        image_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+        results = model.process(image_rgb)
+        
+        # Draw
+        if results.pose_landmarks:
+            drawing.draw_landmarks(frame, results.pose_landmarks, mp_ref.POSE_CONNECTIONS)
+        if results.left_hand_landmarks:
+            drawing.draw_landmarks(frame, results.left_hand_landmarks, mp_ref.HAND_CONNECTIONS)
+        if results.right_hand_landmarks:
+            drawing.draw_landmarks(frame, results.right_hand_landmarks, mp_ref.HAND_CONNECTIONS)
 
-    # Initialize CSV on first frame
-    if CSV_FILENAME is None:
-        ts = int(time.time())
-        CSV_FILENAME = os.path.join(UPLOAD_FOLDER, f"pose_{ts}.csv")
-        with open(CSV_FILENAME, 'w') as f:
-            f.write("timestamp,pose_present\n")
+        # CSV Logging
+        if results.pose_landmarks and CSV_FILENAME is None:
+             ts = int(time.time())
+             CSV_FILENAME = os.path.join(UPLOAD_FOLDER, f"pose_{ts}.csv")
+             with open(CSV_FILENAME, 'w') as f: f.write("timestamp,pose_present\n")
+        
+        if results.pose_landmarks:
+            with open(CSV_FILENAME, 'a') as f: f.write(f"{int(time.time()*1000)},1\n")
 
-    # Simple logging to keep it fast
-    if results.pose_landmarks:
-        with open(CSV_FILENAME, 'a') as f:
-            f.write(f"{int(time.time()*1000)},1\n")
+        # Encode
+        _, buffer = cv2.imencode('.jpg', frame)
+        response_b64 = base64.b64encode(buffer).decode('utf-8')
+        
+        # Explicit cleanup
+        del frame, image_rgb, results, binary
+        gc.collect()
 
-    _, buffer = cv2.imencode('.jpg', frame)
-    frame_encoded = base64.b64encode(buffer).decode('utf-8')
-    emit('response_back', f"data:image/jpeg;base64,{frame_encoded}")
-    gc.collect() 
-    
-    _, buffer = cv2.imencode('.jpg', frame)
-    frame_encoded = base64.b64encode(buffer).decode('utf-8')
-    emit('response_back', f"data:image/jpeg;base64,{frame_encoded}")
+        return jsonify({"image": f"data:image/jpeg;base64,{response_b64}"})
+
+    except Exception as e:
+        print(f"Error: {e}")
+        return jsonify({"error": str(e)}), 500
+
 @app.route('/module7_calc', methods=['POST'])
 def module7_calc():
     import numpy as np
@@ -647,8 +646,7 @@ def module7_calc():
 
 @app.route("/get_sam2_results", methods=["GET"])
 def get_sam2_results():
-    # Placeholder for SAM2
     return jsonify({"images": []})
 
 if __name__ == "__main__":
-    socketio.run(app, host="0.0.0.0", port=5000, allow_unsafe_werkzeug=True)
+    app.run(host="0.0.0.0", port=5000)

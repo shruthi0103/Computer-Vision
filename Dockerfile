@@ -1,6 +1,5 @@
 FROM python:3.9-slim-bookworm
 
-# Install light system dependencies
 RUN apt-get update && apt-get install -y \
     libgl1 \
     libglib2.0-0 \
@@ -10,17 +9,12 @@ RUN apt-get update && apt-get install -y \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
-
 COPY requirements.txt .
-# Install dependencies
 RUN pip install --no-cache-dir -r requirements.txt
-
 COPY . .
-
-# Create all needed folders
 RUN mkdir -p uploads static/mod2/temps static/marker static/sift_images
 
 EXPOSE 5000
 
-# Start command using Eventlet for WebSockets
-CMD ["gunicorn", "-k", "eventlet", "-w", "1", "--bind", "0.0.0.0:5000", "--timeout", "120", "app:app"]
+# CHANGED: Using 'gthread' (threaded) instead of 'eventlet'. Safer for MediaPipe.
+CMD ["gunicorn", "--workers", "1", "--threads", "8", "--bind", "0.0.0.0:5000", "--timeout", "120", "app:app"]
