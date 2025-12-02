@@ -42,15 +42,28 @@ def read_image_from_bytes(file_storage):
 # -------------------------
 # Root & Auth (MOCKED FOR STABILITY)
 # -------------------------
+# -------------------------
+# Root & Auth (MOCKED FOR STABILITY)
+# -------------------------
 @app.route("/")
 def index():
+    # Clear session so they have to "login" (even if mocked)
+    session.clear()
+    # Renders the landing page with the webcam
+    return render_template("face_unlock.html")
+
+@app.route("/skip_login")
+def skip_login():
+    # Allow manual entry button to work
     session["logged_in"] = True
     return redirect("/home")
 
 @app.route("/auth_face", methods=["POST"])
 def auth_face():
-    # Face Unlock mocked to save 500MB RAM
+    # Mock response to prevent RAM crash
     time.sleep(1.0)
+    
+    # Return "No Match" so the frontend asks for manual entry
     return jsonify({
         "match": False, 
         "distance": 0.85, 
