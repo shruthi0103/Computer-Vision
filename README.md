@@ -154,6 +154,9 @@ http://localhost:5000
 
 ## 📁 Project Structure
 
+
+
+```text
 CV-Application/
 ├── app.py                  # Main Entry Point: Contains all Flask routes and logic
 ├── requirements.txt        # Optimized dependency list (No heavy dlib/GUI libs)
@@ -165,7 +168,7 @@ CV-Application/
 │   ├── index.html          # Module 1 
 │   ├── module2.html        # Module 2 
 │   ├── module3.html        # Module 3 
-│   ├── module4.html        # Module 4 
+│   ├── module4.html        # Module 4
 │   ├── module6.html        # Module 6 
 │   └── module7.html        # Module 7 
 └── static/                 # Static Assets
