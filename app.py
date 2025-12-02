@@ -585,7 +585,7 @@ def handle_image(data_image):
     import numpy as np
     import cv2
     import csv
-    
+    import gc
     global csv_writer, CSV_FILENAME
 
     try:
@@ -622,7 +622,11 @@ def handle_image(data_image):
     _, buffer = cv2.imencode('.jpg', frame)
     frame_encoded = base64.b64encode(buffer).decode('utf-8')
     emit('response_back', f"data:image/jpeg;base64,{frame_encoded}")
-
+    gc.collect() 
+    
+    _, buffer = cv2.imencode('.jpg', frame)
+    frame_encoded = base64.b64encode(buffer).decode('utf-8')
+    emit('response_back', f"data:image/jpeg;base64,{frame_encoded}")
 @app.route('/module7_calc', methods=['POST'])
 def module7_calc():
     import numpy as np
