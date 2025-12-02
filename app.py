@@ -10,7 +10,7 @@ import cv2.aruco as aruco
 import threading
 import time
 from queue import Queue
-import face_recognition
+
 from scene import run_multi_template_match, reconstruct_blurred_regions
 import matplotlib
 matplotlib.use('Agg')
@@ -68,38 +68,21 @@ def skip_login():
 # -------------------------
 # Face Recognition Login
 # -------------------------
-KNOWN_FACE_PATH = os.path.join(UPLOAD_FOLDER, "known_face.npz")
-
+# -------------------------
+# Face Recognition Login (MOCKED -> ALWAYS FAILS)
+# -------------------------
 @app.route("/auth_face", methods=["POST"])
 def auth_face():
-    if "image" not in request.files:
-        return jsonify({"error": "No image uploaded"}), 400
+    # 1. Simulate the time it takes to "think"
+    time.sleep(1.0)
 
-    img = read_image_from_bytes(request.files["image"])
-    if img is None:
-        return jsonify({"error": "Could not read image"}), 400
-
-    if not os.path.exists(KNOWN_FACE_PATH):
-        return jsonify({"error": "known_face.npz not found"}), 400
-
-    known = np.load(KNOWN_FACE_PATH)
-    known_enc = known["encoding"]
-
-    rgb = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
-    encs = face_recognition.face_encodings(rgb)
-
-    if not encs:
-        return jsonify({"error": "No face detected"}), 400
-
-    probe = encs[0]
-    distance = float(np.linalg.norm(known_enc - probe))
-    match = distance <= 0.45
-
-    if match:
-        session["logged_in"] = True
-
-    return jsonify({"match": match, "distance": distance})
-
+    # 2. Return a "No Match" result
+    # The frontend will see match=False and ask the user to enter manually.
+    return jsonify({
+        "match": False, 
+        "distance": 0.85,  # High distance = no match
+        "message": "Face not recognized. Please use manual entry."
+    })
 # -------------------------
 # Home Page (requires login)
 # -------------------------
