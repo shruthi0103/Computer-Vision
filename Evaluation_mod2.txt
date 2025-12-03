@@ -24,12 +24,19 @@ location and size.
   MODULE 2 – TEMPLATE MATCHING EVALUATION RESULTS
   -------------------------------------------------
 
-Object # | Object Name | Center Error (px) | Scale Deviation (%)
+| Object # | Object Name   | Center Error (px) | Scale Deviation (%) |
+| -------- | ------------- | ----------------- | ------------------- |
+| 1        | Power Adapter | 145               | 6.8                 |
+| 2        | Pink Bottle   | 312               | 18.4                |
+| 3        | Book          | 98                | 4.2                 |
+| 4        | Breeze Card   | 421               | 21.6                |
+| 5        | Blue Box      | 72                | 3.1                 |
+| 6        | Wallet        | 536               | 35.8                |
+| 7        | Pink Box      | 688               | 42.5                |
+| 8        | Purple Tube   | 54                | 2.9                 |
+| 9        | Pizza Pouch   | 370               | 18.0                |
+| 10       | Post-it Notes | 467               | 27.3                |
 
-1 | Power Adapter | 145 | 6.8 2 | Pink Bottle | 312 | 18.4 3 | Book | 98
-| 4.2 4 | Breeze Card | 421 | 21.6 5 | Blue Box | 72 | 3.1 6 | Wallet |
-536 | 35.8 7 | Pink Box | 688 | 42.5 8 | Purple Tube | 54 | 2.9 9 |
-Pizza Pouch | 370 | 18.0 10 | Post-it Notes | 467 | 27.3
 
   ----------------
   INTERPRETATION
