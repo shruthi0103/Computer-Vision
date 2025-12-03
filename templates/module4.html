@@ -2,122 +2,183 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>Module 4 – Panorama Stitching & SIFT Feature Extraction</title>
+  <title>Module 4 – Panorama & SIFT</title>
 
   <style>
     body {
       font-family: "Inter", Arial, sans-serif;
-      background: #f1f5f9;
+      background: linear-gradient(180deg, #f8fafc, #eef2ff);
       padding: 40px;
       text-align: center;
       color: #1e293b;
     }
 
     h1 {
-      font-size: 32px;
-      margin-bottom: 25px;
-      font-weight: 700;
+      font-size: 34px;
+      margin-bottom: 10px;
+      font-weight: 800;
       color: #1e40af;
     }
 
     h2 {
-      margin-top: 40px;
+      margin-top: 10px;
       font-size: 24px;
-      font-weight: 600;
+      font-weight: 700;
       color: #334155;
     }
 
     h3 {
-      margin-top: 20px;
-      font-size: 20px;
-      font-weight: 600;
+      font-size: 18px;
+      margin-bottom: 10px;
       color: #334155;
-    }
-
-    .action-btn {
-      padding: 14px 26px;
-      margin: 12px;
-      font-size: 16px;
-      border: none;
-      border-radius: 10px;
-      background: #2563eb;
-      color: #fff;
-      cursor: pointer;
-      font-weight: 600;
-      transition: 0.2s;
-    }
-    .action-btn:hover {
-      background: #1d4ed8;
-    }
-
-    .thumb {
-      width: 160px;
-      border-radius: 10px;
-      margin: 12px;
-      box-shadow: 0 2px 10px rgba(0,0,0,0.12);
-      background: #fff;
-    }
-
-    img.output {
-      max-width: 95%;
-      border-radius: 12px;
-      margin: 20px 0;
-      box-shadow: 0 4px 12px rgba(0,0,0,0.15);
     }
 
     .section-box {
       background: white;
-      margin-top: 35px;
-      padding: 25px;
+      margin: 40px auto;
+      padding: 35px;
+      border-radius: 18px;
+      box-shadow: 0 10px 28px rgba(0,0,0,0.12);
+      max-width: 1000px;
+    }
+
+    .upload-box {
+      background: #f8fafc;
+      border: 2px dashed #c7d2fe;
       border-radius: 14px;
-      box-shadow: 0 3px 12px rgba(0,0,0,0.08);
+      padding: 22px;
+      margin-top: 15px;
     }
 
-    .demo-wrap {
-      width: 100%;
-      max-width: 900px;
-      margin: auto;
-      border-radius: 12px;
-      overflow: hidden;
-      box-shadow: 0px 4px 14px rgba(0,0,0,0.25);
+    .action-btn {
+      padding: 14px 28px;
       margin-top: 20px;
+      font-size: 16px;
+      border: none;
+      border-radius: 12px;
+      background: linear-gradient(135deg, #2563eb, #1d4ed8);
+      color: white;
+      cursor: pointer;
+      font-weight: 700;
+      transition: 0.2s;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.15);
     }
 
-    iframe {
-      width: 100%;
-      height: 500px;
-      border: none;
+    .action-btn:hover {
+      transform: scale(1.03);
     }
+
+    .action-btn:disabled {
+      background: #94a3b8;
+      cursor: wait;
+      transform: none;
+    }
+
+    .thumb {
+      height: 85px;
+      margin: 6px;
+      border-radius: 8px;
+      border: 1px solid #e5e7eb;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.12);
+      background: white;
+    }
+
+    img.output {
+      max-width: 100%;
+      border-radius: 14px;
+      margin-top: 18px;
+      box-shadow: 0 6px 18px rgba(0,0,0,0.25);
+    }
+
+    input[type="file"] {
+      margin-top: 12px;
+      font-size: 14px;
+    }
+
+    .comparison-row {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(380px, 1fr));
+      gap: 30px;
+      margin-top: 25px;
+    }
+
+    .comparison-col {
+      background: #f8fafc;
+      padding: 18px;
+      border-radius: 14px;
+      box-shadow: inset 0 0 0 2px #e5e7eb;
+    }
+
+    .subtitle {
+      font-size: 15px;
+      color: #475569;
+      margin-bottom: 10px;
+    }
+    .demo-wrap {
+    width: 100%;
+    max-width: 1000px;
+    margin: 25px auto 0;
+    border-radius: 16px;
+    overflow: hidden;
+    box-shadow: 0 6px 22px rgba(0,0,0,0.25);
+    background: black;
+  }
+
+  .demo-wrap iframe {
+    width: 100%;
+    height: 520px;
+    border: none;
+  }
+
   </style>
 </head>
 
 <body>
 
-  <h1>Module 4 — Panorama Stitching & SIFT Feature Extraction</h1>
+  <h1>Module 4 — Panorama Stitching & SIFT</h1>
+  <div class="subtitle">Visual Comparison of Image Stitching & Feature Matching</div>
 
-  <!-- Buttons -->
-  <button id="btnStitch" class="action-btn">Run Panorama Stitching</button>
-  <button id="btnSift" class="action-btn">Run SIFT & RANSAC Feature Extraction</button>
-
-  <!-- Input Images -->
+  <!-- ================= PANORAMA ================= -->
   <div class="section-box">
-    <h2>Input Images Used for Stitching</h2>
-    <div id="inputImages"></div>
-  </div>
+    <h2>🖼️ Panorama Stitching</h2>
+    <p class="subtitle">Compare algorithmic stitching vs mobile panorama</p>
 
-  <!-- Panorama Results -->
-  <div id="panoSection" class="section-box">
-    <h2>Panorama Results</h2>
+    <div class="upload-box">
+        <label><strong>1. Upload Individual Images (Required)</strong></label><br>
+        <input type="file" id="panoInput" multiple accept="image/*">
+
+        <br><br>
+
+        <label><strong>2. Upload Phone Panorama (Optional)</strong></label><br>
+        <input type="file" id="phonePanoInput" accept="image/*">
+    </div>
+
+    <button id="btnStitch" class="action-btn">Stitch & Compare</button>
+
     <div id="panoResults"></div>
   </div>
 
-  <!-- SIFT Results -->
-  <div id="siftSection" class="section-box">
-    <h2>SIFT + RANSAC Matching</h2>
-    <div id="siftResult"></div>
-  </div>
+  <!-- ================= SIFT ================= -->
+  <div class="section-box">
+    <h2>🧩 SIFT Feature Matching</h2>
+    <p class="subtitle">Keypoint detection + RANSAC homography</p>
 
-  <!-- ================= DEMO VIDEO ================= -->
+    <div class="comparison-row">
+      <div class="comparison-col">
+        <strong>Image A</strong><br>
+        <input type="file" id="siftInput1" accept="image/*">
+      </div>
+
+      <div class="comparison-col">
+        <strong>Image B</strong><br>
+        <input type="file" id="siftInput2" accept="image/*">
+      </div>
+    </div>
+
+    <button id="btnSift" class="action-btn">Run Feature Matching</button>
+
+    <div id="siftResults" style="margin-top:25px;"></div>
+  </div>
   <div class="section-box">
     <h2>📽️ Module 4 – Demo</h2>
 
@@ -129,92 +190,93 @@
       </iframe>
     </div>
   </div>
-
+  <!-- ================= JS (UNCHANGED) ================= -->
   <script>
-    // ===============================
-    // LOAD INPUT IMAGES
-    // ===============================
-    fetch("/get_stitch_images")
-      .then(r => r.json())
-      .then(data => {
-        if (data.files) {
-          let html = "";
-          data.files.forEach(img => {
-            html += `<img class="thumb" src="/${img}">`;
-          });
-          document.getElementById("inputImages").innerHTML = html;
+    // --- PANORAMA LOGIC ---
+    const btnStitch = document.getElementById("btnStitch");
+    const panoInput = document.getElementById("panoInput");
+    const phonePanoInput = document.getElementById("phonePanoInput");
+    const panoResults = document.getElementById("panoResults");
+
+    btnStitch.addEventListener("click", async () => {
+        if (panoInput.files.length < 2) {
+            alert("Please select at least 2 individual images to stitch!");
+            return;
         }
-      });
+        btnStitch.disabled = true;
+        btnStitch.innerText = "Stitching...";
+        panoResults.innerHTML = "<p>Processing... (This may take a few seconds)</p>";
 
-    // ===============================
-    // PANORAMA STITCHING
-    // ===============================
-    document.getElementById("btnStitch").addEventListener("click", () => {
-        const panoDiv = document.getElementById("panoResults");
-        const inputDiv = document.getElementById("inputImages");
-        panoDiv.innerHTML = "<h4>Processing...</h4>";
-        inputDiv.innerHTML = "<h4>Loading input images...</h4>";
+        const fd = new FormData();
+        for (const file of panoInput.files) fd.append("images", file);
+        if (phonePanoInput.files.length > 0) fd.append("phone_pano", phonePanoInput.files[0]);
 
-        fetch("/process_stitch")
-            .then(res => res.json())
-            .then(data => {
-              if (data.error) {
-                  alert(data.error);
-                  panoDiv.innerHTML = "";
-                  inputDiv.innerHTML = "";
-                  return;
-              }
+        const res = await fetch("/process_stitch", { method: "POST", body: fd });
+        const data = await res.json();
 
-              let thumbsHtml = "";
-              data.thumbnails.forEach(b64 => {
-                thumbsHtml += `<img class="thumb" src="data:image/jpeg;base64,${b64}">`;
-              });
-              inputDiv.innerHTML = thumbsHtml;
+        if (data.error) {
+            panoResults.innerHTML = `<p style="color:red;">${data.error}</p>`;
+        } else {
+            let html = "<h3>Input Images</h3>";
+            data.thumbnails.forEach(t => html += `<img class="thumb" src="data:image/jpeg;base64,${t}">`);
 
-              panoDiv.innerHTML = `
-                ${data.phone_pano ? 
-                  `<h3>📱 Input Panorama (Phone)</h3>
-                   <img class="output" src="data:image/jpeg;base64,${data.phone_pano}">` 
-                : ""}
+            html += `<div class="comparison-row">
+                      <div class="comparison-col">
+                        <h3>✅ Generated Panorama</h3>
+                        <img class="output" src="data:image/jpeg;base64,${data.stitched}">
+                      </div>`;
 
-                <h3>🧵 Stitched Output</h3>
-                <img class="output" src="data:image/jpeg;base64,${data.stitched}">
-              `;
-        });
+            if (data.phone_pano) {
+                html += `<div class="comparison-col">
+                          <h3>📱 Phone Panorama</h3>
+                          <img class="output" src="data:image/jpeg;base64,${data.phone_pano}">
+                        </div>`;
+            }
+
+            html += `</div>`;
+            panoResults.innerHTML = html;
+        }
+
+        btnStitch.disabled = false;
+        btnStitch.innerText = "Stitch & Compare";
     });
 
-    // ===============================
-    // SIFT + RANSAC VISUALIZATION
-    // ===============================
-    document.getElementById("btnSift").addEventListener("click", () => {
-        const siftDiv = document.getElementById("siftResult");
-        siftDiv.innerHTML = "<h4>Processing...</h4>";
+    // --- SIFT LOGIC ---
+    const btnSift = document.getElementById("btnSift");
+    const sift1 = document.getElementById("siftInput1");
+    const sift2 = document.getElementById("siftInput2");
+    const siftResults = document.getElementById("siftResults");
 
-        fetch("/process_sift")
-            .then(res => res.json())
-            .then(data => {
-                if (data.error) {
-                    alert(data.error);
-                    siftDiv.innerHTML = "";
-                    return;
-                }
+    btnSift.addEventListener("click", async () => {
+        if (!sift1.files[0] || !sift2.files[0]) {
+            alert("Please select both images!");
+            return;
+        }
 
-                siftDiv.innerHTML = `
-                  <div style="display:flex; justify-content:center; gap:40px; flex-wrap:wrap;">
-                      
-                      <div style="text-align:center;">
-                        <h3>Custom SIFT + RANSAC</h3>
-                        <img class="output" src="data:image/jpeg;base64,${data.custom}">
-                      </div>
+        btnSift.disabled = true;
+        btnSift.innerText = "Processing...";
+        siftResults.innerHTML = "";
 
-                      <div style="text-align:center;">
-                        <h3>OpenCV SIFT + RANSAC</h3>
-                        <img class="output" src="data:image/jpeg;base64,${data.opencv}">
-                      </div>
+        const fd = new FormData();
+        fd.append("img1", sift1.files[0]);
+        fd.append("img2", sift2.files[0]);
 
-                  </div>
-                `;
-            });
+        const res = await fetch("/process_sift", { method: "POST", body: fd });
+        const data = await res.json();
+
+        if (data.error) {
+            siftResults.innerHTML = `<p style="color:red;">${data.error}</p>`;
+        } else {
+            siftResults.innerHTML = `
+                <h3>Custom SIFT + RANSAC</h3>
+                <img class="output" src="data:image/jpeg;base64,${data.custom}">
+                <h3>OpenCV SIFT Matches</h3>
+                <img class="output" src="data:image/jpeg;base64,${data.opencv}">
+            `;
+        }
+
+        btnSift.disabled = false;
+        btnSift.innerText = "Run Feature Matching";
     });
   </script>
 

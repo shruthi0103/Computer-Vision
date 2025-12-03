@@ -191,20 +191,28 @@
     <img id="outBoundary" class="large-output">
   </section>
   <!-- 5. SAM2 Segmentation (Offline Results) -->
-<section>
-  <h2>5. SAM2 Segmentation</h2>
-  <p class="subtext">
-    These results were generated offline using the SAM2 model.
-  </p>
-
-  <div class="control-row">
-    <button id="runSAM2">Show SAM2 Results</button>
-  </div>
-
-  <div id="sam2Gallery"
-       style="margin-top:18px; display:grid; grid-template-columns:repeat(auto-fit,minmax(420px,1fr)); gap:20px;">
-  </div>
-</section>
+  <section>
+    <h2>5. SAM2 Segmentation</h2>
+    <p class="subtext">
+      Upload an image for visual comparison with offline SAM2 results.
+    </p>
+  
+    <div class="control-row">
+      <input type="file" id="sam2Upload" accept="image/*">
+      <button id="runSAM2">Show SAM2 Results</button>
+    </div>
+  
+    <!-- Uploaded Preview -->
+    <div id="sam2UploadPreview"
+         style="margin-top:15px; display:flex; justify-content:center; gap:15px; flex-wrap:wrap;">
+    </div>
+  
+    <!-- Offline Results -->
+    <div id="sam2Gallery"
+         style="margin-top:18px; display:grid; grid-template-columns:repeat(auto-fit,minmax(420px,1fr)); gap:20px;">
+    </div>
+  </section>
+  
 
 <div class="container">
   <section class="card p-4 mt-5 text-center">

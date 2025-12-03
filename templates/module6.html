@@ -94,16 +94,17 @@
 <h2>Module 6 – Motion Tracking</h2>
 
 <!-- ======================= Markerless Tracker ======================= -->
+<!-- ======================= Markerless Tracker ======================= -->
 <div class="tracker-section">
 
     <!-- Column 1 -->
     <div>
         <button onclick="startMarkerless()">Run Markerless Tracker</button>
 
-        <p class="label">Original Video</p>
-        <video controls autoplay loop>
-            <source src="/static/motion.mp4" type="video/mp4">
-        </video>
+        <p class="label">Upload Video</p>
+        <input type="file" id="markerlessUpload" accept="video/*">
+
+        <video id="markerlessPreview" controls style="margin-top:10px; width:320px; display:none;"></video>
     </div>
 
     <!-- Column 2 -->
@@ -127,10 +128,10 @@
     <div>
         <button onclick="startAruco()">Run ArUco Tracker</button>
 
-        <p class="label">Original Video</p>
-        <video controls autoplay loop>
-            <source src="/static/aruco_video.mp4" type="video/mp4">
-        </video>
+        <p class="label">Upload Video</p>
+        <input type="file" id="arucoUpload" accept="video/*">
+
+        <video id="arucoPreview" controls style="margin-top:10px; width:320px; display:none;"></video>
     </div>
 
     <!-- Column 2 -->
@@ -146,6 +147,7 @@
     </div>
 
 </div>
+
 
 <!-- ======================= SAM2 Tracker ======================= -->
 <div class="tracker-section" style="flex-direction: column; align-items:center;">

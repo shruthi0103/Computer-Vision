@@ -93,8 +93,61 @@
         </div>
     </div>
 </div>
+<!-- Metric Description -->
+<div class="card p-4 mt-4 mb-3">
+    <h5 class="text-center mb-3">📊 Evaluation Metrics</h5>
 
-<!-- ✅ CLEAN GOOGLE DRIVE DEMO SECTION (MATCHES MODULE 6 STYLE) -->
+    <p class="mb-2">
+        <b>Center Localization Error (pixels):</b><br>
+        Measures the Euclidean distance between the center of the Ground Truth (GT) box and the center of the detected bounding box.
+        <br>
+        <i>Lower values indicate higher localization accuracy.</i>
+    </p>
+
+    <p class="mb-0">
+        <b>Scale Deviation (%):</b><br>
+        Measures the percentage difference between the area of the detected bounding box and the area of the Ground Truth box.
+        <br>
+        <i>Lower values indicate better scale consistency with the true object size.</i>
+    </p>
+</div>
+
+<div class="card p-4 mt-4">
+    <h5 class="text-center mb-3">Module 2 – Template Matching Evaluation</h5>
+    <p class="text-center text-muted">
+      Empirical evaluation using Center Localization Error and Scale Deviation.
+    </p>
+  
+    <div class="table-responsive">
+      <table class="table table-bordered table-striped text-center align-middle">
+        <thead class="table-light">
+          <tr>
+            <th>Object #</th>
+            <th>Object Name</th>
+            <th>Center Error (px)</th>
+            <th>Scale Deviation (%)</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr><td>1</td><td>Power Adapter</td><td>145</td><td>6.8</td></tr>
+          <tr><td>2</td><td>Pink bottle</td><td>312</td><td>18.4</td></tr>
+          <tr><td>3</td><td>Book</td><td>98</td><td>4.2</td></tr>
+          <tr><td>4</td><td>Breeze card</td><td>421</td><td>21.6</td></tr>
+          <tr><td>5</td><td>Blue box</td><td>72</td><td>3.1</td></tr>
+          <tr><td>6</td><td>Wallet</td><td>536</td><td>35.8</td></tr>
+          <tr><td>7</td><td>Pink box</td><td>688</td><td>42.5</td></tr>
+          <tr><td>8</td><td>Purple tube</td><td>54</td><td>2.9</td></tr>
+          <tr><td>9</td><td>Pizza pouch</td><td>370</td><td>18.0</td></tr>
+          <tr><td>10</td><td>Post-it Notes</td><td>467</td><td>27.3</td></tr>
+        </tbody>
+        <tfoot class="table-light">
+
+        </tfoot>
+      </table>
+    </div>
+  </div>
+  
+
 <div class="container">
     <div class="card p-4 mt-5 text-center">
         <h4 class="mb-3">📽️ Module 2 – Demo</h4>

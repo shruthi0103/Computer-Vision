@@ -3,41 +3,53 @@ import base64
 import json
 import time
 import io
+<<<<<<< Updated upstream
 import gc  
 from flask import Flask, request, render_template, jsonify, redirect, session, send_file, Response
 from flask_cors import CORS 
+=======
+import gc
+from flask import Flask, request, render_template, jsonify, redirect, session, send_file, Response
+from flask_cors import CORS
+>>>>>>> Stashed changes
 
-# -------------------------
-# Setup
-# -------------------------
+# ==========================================
+# 1. IMPORTS & SETUP
+# ==========================================
 UPLOAD_FOLDER = "uploads"
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
+# Create all subfolders to prevent FileNotFoundError
 os.makedirs(os.path.join(UPLOAD_FOLDER, "panorama"), exist_ok=True)
 os.makedirs(os.path.join(UPLOAD_FOLDER, "phone_pano"), exist_ok=True)
 os.makedirs(os.path.join("static", "mod2", "temps"), exist_ok=True)
 os.makedirs(os.path.join("static", "marker"), exist_ok=True)
 
 app = Flask(__name__, static_folder="static", template_folder="templates")
+<<<<<<< Updated upstream
 CORS(app) 
+=======
+CORS(app)  # Allow cross-origin requests for the frontend fetch
+>>>>>>> Stashed changes
 app.config["UPLOAD_FOLDER"] = UPLOAD_FOLDER
 app.config["MAX_CONTENT_LENGTH"] = 200 * 1024 * 1024
 app.secret_key = "supersecretkey"
 
-# -------------------------
-# Helpers
-# -------------------------
+# ==========================================
+# 2. HELPER FUNCTIONS
+# ==========================================
 def allowed_image(filename):
     ext = filename.lower().rsplit(".", 1)[-1]
     return ext in ("jpg", "jpeg", "png", "bmp", "tiff")
 
 def read_image_from_bytes(file_storage):
-    # LAZY IMPORT
+    # LAZY IMPORT: Saves RAM on startup
     import numpy as np
     import cv2
     data = file_storage.read()
     arr = np.frombuffer(data, dtype=np.uint8)
     return cv2.imdecode(arr, cv2.IMREAD_COLOR)
 
+<<<<<<< Updated upstream
 # -------------------------
 # Root & Auth
 # -------------------------
@@ -46,20 +58,30 @@ def index():
 
     session.clear()
 
+=======
+# ==========================================
+# 3. CORE ROUTES (AUTH & HOME)
+# ==========================================
+@app.route("/")
+def index():
+    session.clear()
+>>>>>>> Stashed changes
     return render_template("face_unlock.html")
 
 @app.route("/skip_login")
 def skip_login():
-    # Allow manual entry button to work
     session["logged_in"] = True
     return redirect("/home")
 
 @app.route("/auth_face", methods=["POST"])
 def auth_face():
-    # Mock response to prevent RAM crash
+    # Mocked response to save RAM (Face Rec needs 500MB+)
     time.sleep(1.0)
+<<<<<<< Updated upstream
     
 
+=======
+>>>>>>> Stashed changes
     return jsonify({
         "match": False, 
         "distance": 0.85, 
@@ -77,9 +99,9 @@ def logout():
     session.clear()
     return redirect("/")
 
-# -------------------------
-# Module 1: Camera Calibration
-# -------------------------
+# ==========================================
+# 4. MODULE 1: CALIBRATION
+# ==========================================
 @app.route("/module1")
 def module1():
     return render_template("index.html")
@@ -90,149 +112,102 @@ def calibrate():
     import cv2
 
     files = request.files.getlist("files[]")
-    if not files:
-        return jsonify({"error": "No files uploaded"}), 400
+    if not files: return jsonify({"error": "No files"}), 400
 
     try:
-        pattern_cols = int(request.form.get("pattern_cols", "9"))
-        pattern_rows = int(request.form.get("pattern_rows", "6"))
-        square_size = float(request.form.get("square_size", "1.0"))
-    except Exception:
-        return jsonify({"error": "Invalid pattern parameters"}), 400
+        cols = int(request.form.get("pattern_cols", "9"))
+        rows = int(request.form.get("pattern_rows", "6"))
+        sq_size = float(request.form.get("square_size", "1.0"))
+    except: return jsonify({"error": "Invalid params"}), 400
 
-    pattern_size = (pattern_cols, pattern_rows)
-    objp = np.zeros((pattern_rows * pattern_cols, 3), np.float32)
-    objp[:, :2] = np.mgrid[0:pattern_cols, 0:pattern_rows].T.reshape(-1, 2) * square_size
+    objp = np.zeros((rows * cols, 3), np.float32)
+    objp[:, :2] = np.mgrid[0:cols, 0:rows].T.reshape(-1, 2) * sq_size
 
-    objpoints = []
-    imgpoints = []
+    objpoints, imgpoints = [], []
     messages = []
-    image_shape = None
+    img_shape = None
 
     for f in files:
-        if not allowed_image(f.filename):
-            messages.append({"file": f.filename, "status": "skipped"})
-            continue
+        if not allowed_image(f.filename): continue
         img = read_image_from_bytes(f)
-        if img is None:
-            messages.append({"file": f.filename, "status": "read_failed"})
-            continue
-        
+        if img is None: continue
         gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-        if image_shape is None:
-            image_shape = gray.shape[::-1]
+        if img_shape is None: img_shape = gray.shape[::-1]
 
-        found, corners = cv2.findChessboardCorners(
-            gray, pattern_size,
-            cv2.CALIB_CB_ADAPTIVE_THRESH + cv2.CALIB_CB_NORMALIZE_IMAGE + cv2.CALIB_CB_FAST_CHECK
-        )
-
+        found, corners = cv2.findChessboardCorners(gray, (cols, rows), None)
         if found:
-            refined = cv2.cornerSubPix(
-                gray, corners, (11, 11), (-1, -1),
-                (cv2.TERM_CRITERIA_EPS + cv2.TERM_CRITERIA_MAX_ITER, 30, 1e-6)
-            )
+            refined = cv2.cornerSubPix(gray, corners, (11,11), (-1,-1), (cv2.TERM_CRITERIA_EPS + cv2.TERM_CRITERIA_MAX_ITER, 30, 1e-6))
             objpoints.append(objp)
             imgpoints.append(refined)
             messages.append({"file": f.filename, "status": "ok"})
         else:
             messages.append({"file": f.filename, "status": "no_chessboard"})
 
-    if not objpoints:
-        return jsonify({"error": "No valid chessboard detections"}), 400
+    if not objpoints: return jsonify({"error": "No valid patterns found"}), 400
 
-    ret, K, dist, rvecs, tvecs = cv2.calibrateCamera(
-        objpoints, imgpoints, image_shape, None, None
-    )
-
+    ret, K, dist, rvecs, tvecs = cv2.calibrateCamera(objpoints, imgpoints, img_shape, None, None)
+    
     return jsonify({
-        "fx": float(K[0, 0]),
-        "fy": float(K[1, 1]),
-        "cx": float(K[0, 2]),
-        "cy": float(K[1, 2]),
+        "fx": float(K[0,0]), "fy": float(K[1,1]), "cx": float(K[0,2]), "cy": float(K[1,2]),
         "messages": messages
     })
 
 @app.route("/measure", methods=["POST"])
 def measure():
     import numpy as np
-    
-    if "image" not in request.files:
-        return jsonify({"error": "No image uploaded"}), 400
-
-    img = read_image_from_bytes(request.files["image"])
-    if img is None: return jsonify({"error": "Could not read image"}), 400
-
     try:
         pts = np.array(json.loads(request.form["points"]), dtype=np.float32)
         fx = float(request.form["fx"])
         fy = float(request.form["fy"])
-        distance_cm = float(request.form["distance_cm"])
-    except Exception as e:
-        return jsonify({"error": str(e)}), 400
+        dist_cm = float(request.form["distance_cm"])
+        
+        if pts.shape != (4, 2): return jsonify({"error": "4 points needed"}), 400
+        
+        pts_sorted = pts[np.argsort(pts[:, 1])]
+        top, bottom = pts_sorted[:2], pts_sorted[2:]
+        top = top[np.argsort(top[:, 0])]
+        bottom = bottom[np.argsort(bottom[:, 0])]
+        
+        tl, tr, bl, br = top[0], top[1], bottom[0], bottom[1]
+        
+        pix_w = float(np.linalg.norm(tr - tl))
+        pix_h = float((np.linalg.norm(bl - tl) + np.linalg.norm(br - tr)) / 2.0)
+        
+        return jsonify({
+            "estimated_width_cm": (pix_w * dist_cm) / fx,
+            "estimated_height_cm": (pix_h * dist_cm) / fy
+        })
+    except Exception as e: return jsonify({"error": str(e)}), 400
 
-    if pts.shape != (4, 2):
-        return jsonify({"error": "4 points required"}), 400
-
-    pts_sorted = pts[np.argsort(pts[:, 1])]
-    top_two, bottom_two = pts_sorted[:2], pts_sorted[2:]
-    top_left, top_right = sorted(top_two, key=lambda x: x[0])
-    bottom_left, bottom_right = sorted(bottom_two, key=lambda x: x[0])
-
-    pixel_width = float(np.linalg.norm(top_right - top_left))
-    h_left = np.linalg.norm(bottom_left - top_left)
-    h_right = np.linalg.norm(bottom_right - top_right)
-    pixel_height = float((h_left + h_right) / 2.0)
-
-    estimated_width_cm = (pixel_width * distance_cm) / fx
-    estimated_height_cm = (pixel_height * distance_cm) / fy
-
-    return jsonify({
-        "pixel_width": pixel_width,
-        "pixel_height": pixel_height,
-        "estimated_width_cm": estimated_width_cm,
-        "estimated_height_cm": estimated_height_cm,
-        "fx": fx, "fy": fy
-    })
-
-# -------------------------
-# Module 2: Template Matching
-# -------------------------
+# ==========================================
+# 5. MODULE 2: TEMPLATE MATCHING
+# ==========================================
 @app.route("/module2")
 def module2(): return render_template("module2.html")
 
 @app.route("/list_templates_mod2")
 def list_templates_mod2():
-    template_dir = os.path.join("static", "mod2", "temps")
-    if not os.path.exists(template_dir): return jsonify({"templates": []})
-    files = sorted([f for f in os.listdir(template_dir) if f.lower().endswith((".jpg", ".png", ".jpeg"))])
-    return jsonify({"templates": [f"/static/mod2/temps/{f}" for f in files]})
+    d = os.path.join("static", "mod2", "temps")
+    if not os.path.exists(d): return jsonify({"templates": []})
+    return jsonify({"templates": [f"/static/mod2/temps/{f}" for f in sorted(os.listdir(d)) if f.endswith(('.jpg','.png'))]})
 
 @app.route("/match", methods=["POST"])
 def match():
     import cv2
     from scene import run_multi_template_match
-
-    if "scene" not in request.files: return jsonify({"error": "Missing scene"}), 400
+    
+    if "scene" not in request.files: return jsonify({"error": "No scene"}), 400
     scene = read_image_from_bytes(request.files["scene"])
     
-    template_dir = os.path.join("static", "mod2", "temps")
-    templates = []
-    if os.path.exists(template_dir):
-        for fname in sorted(os.listdir(template_dir)):
-            if fname.lower().endswith((".jpg", ".png", ".jpeg")):
-                t = cv2.imread(os.path.join(template_dir, fname))
-                if t is not None: templates.append(t)
+    t_dir = os.path.join("static", "mod2", "temps")
+    temps = [cv2.imread(os.path.join(t_dir, f)) for f in os.listdir(t_dir) if f.endswith(('.jpg','.png'))]
+    if not temps: return jsonify({"error": "No templates"}), 400
     
-    if not templates: return jsonify({"error": "No templates found"}), 400
-
     try:
-        result, boxes = run_multi_template_match(scene, templates)
-        _, buffer = cv2.imencode(".png", result)
-        img_b64 = base64.b64encode(buffer).decode("ascii")
-        return jsonify({"image": img_b64, "boxes": boxes})
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
+        res, boxes = run_multi_template_match(scene, temps)
+        _, buf = cv2.imencode(".png", res)
+        return jsonify({"image": base64.b64encode(buf).decode("ascii"), "boxes": boxes})
+    except Exception as e: return jsonify({"error": str(e)}), 500
 
 @app.route("/reconstruct", methods=["POST"])
 def reconstruct_route():
@@ -240,17 +215,15 @@ def reconstruct_route():
     import json
     from scene import reconstruct_blurred_regions
     
-    if "image" not in request.files: return jsonify({"error": "No image"}), 400
     img = read_image_from_bytes(request.files["image"])
     boxes = json.loads(request.form.get("boxes", "[]"))
-    
-    result = reconstruct_blurred_regions(img, boxes)
-    _, buf = cv2.imencode(".png", result)
+    res = reconstruct_blurred_regions(img, boxes)
+    _, buf = cv2.imencode(".png", res)
     return jsonify({"image": base64.b64encode(buf).decode("ascii")})
 
-# -------------------------
-# Module 3: Image Processing
-# -------------------------
+# ==========================================
+# 6. MODULE 3: FEATURE ANALYSIS (Grad, Edge, ArUco)
+# ==========================================
 @app.route("/module3")
 def module3(): return render_template("module3.html")
 
@@ -260,55 +233,35 @@ def process_gradient_log():
     import numpy as np
     
     files = request.files.getlist("images[]")
-    processed_images = []
-    target_width = 300
-
+    processed = []
+    
     for f in files:
-        if not allowed_image(f.filename): continue
         img = read_image_from_bytes(f)
         if img is None: continue
-
+        
+        # Resize for RAM
         h, w = img.shape[:2]
-        scale = target_width / w
-        original_resized = cv2.resize(img, (target_width, int(h * scale)))
-
-        img_gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-        img_f = img_gray.astype(np.float32) / 255.0
-
-        gx = cv2.Sobel(img_f, cv2.CV_32F, 1, 0, ksize=3)
-        gy = cv2.Sobel(img_f, cv2.CV_32F, 0, 1, ksize=3)
-        grad_mag = cv2.magnitude(gx, gy)
-        grad_angle = cv2.phase(gx, gy, angleInDegrees=True)
+        img = cv2.resize(img, (300, int(h * 300/w)))
         
-        grad_mag_disp = cv2.normalize(grad_mag, None, 0, 1, cv2.NORM_MINMAX)
-        grad_mag_uint8 = (grad_mag_disp * 255).astype(np.uint8)
-        grad_mag_bgr = cv2.cvtColor(cv2.resize(grad_mag_uint8, (target_width, int(h*scale))), cv2.COLOR_GRAY2BGR)
-
-        grad_angle_uint8 = (grad_angle / 360.0 * 255).astype(np.uint8)
-        grad_angle_color = cv2.applyColorMap(grad_angle_uint8, cv2.COLORMAP_HSV)
-        grad_angle_resized = cv2.resize(grad_angle_color, (target_width, int(h*scale)))
-
-        blur = cv2.GaussianBlur(img_f, (5, 5), sigmaX=1)
-        log = cv2.Laplacian(blur, cv2.CV_32F, ksize=5)
+        gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY).astype(np.float32) / 255.0
+        gx = cv2.Sobel(gray, cv2.CV_32F, 1, 0, ksize=3)
+        gy = cv2.Sobel(gray, cv2.CV_32F, 0, 1, ksize=3)
+        mag = cv2.magnitude(gx, gy)
+        
+        mag_norm = cv2.normalize(mag, None, 0, 1, cv2.NORM_MINMAX)
+        mag_bgr = cv2.cvtColor((mag_norm*255).astype(np.uint8), cv2.COLOR_GRAY2BGR)
+        
+        blur = cv2.GaussianBlur(gray, (5,5), 1)
+        log = cv2.Laplacian(blur, cv2.CV_32F)
         log_norm = cv2.normalize(np.abs(log), None, 0, 255, cv2.NORM_MINMAX).astype(np.uint8)
-        _, log_edges = cv2.threshold(log_norm, 30, 255, cv2.THRESH_BINARY)
-        log_bgr = cv2.cvtColor(cv2.resize(log_edges, (target_width, int(h*scale))), cv2.COLOR_GRAY2BGR)
-
-        processed_images.append(np.hstack([original_resized, grad_mag_bgr, grad_angle_resized, log_bgr]))
-
-    if not processed_images: return jsonify({"error": "No images"}), 400
-    
-    # Create Header
-    num_cols = 4
-    header_height = 40
-    header_img = np.full((header_height, target_width * num_cols, 3), 255, dtype=np.uint8)
-    labels = ["Original", "Grad Mag", "Grad Angle", "LoG"]
-    for i, text in enumerate(labels):
-        pos = (i * target_width + target_width // 2 - 50, 28)
-        cv2.putText(header_img, text, pos, cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 0, 0), 2, cv2.LINE_AA)
+        _, log_bin = cv2.threshold(log_norm, 30, 255, cv2.THRESH_BINARY)
+        log_bgr = cv2.cvtColor(log_bin, cv2.COLOR_GRAY2BGR)
         
-    final_output = np.vstack([header_img] + processed_images)
-    _, buf = cv2.imencode(".png", final_output)
+        processed.append(np.hstack([img, mag_bgr, log_bgr])) # Simplified stack
+        
+    if not processed: return jsonify({"error": "No images"}), 400
+    final = np.vstack(processed)
+    _, buf = cv2.imencode(".png", final)
     return jsonify({"image": base64.b64encode(buf).decode("ascii")})
 
 @app.route("/process_edge_corner", methods=["POST"])
@@ -318,16 +271,14 @@ def process_edge_corner():
     
     files = request.files.getlist("images[]")
     output = []
-    target_width = 260
-
+    
     for f in files:
-        if not allowed_image(f.filename): continue
         img = read_image_from_bytes(f)
         if img is None: continue
-        
         h, w = img.shape[:2]
-        scale = target_width / w
+        img = cv2.resize(img, (260, int(h * 260/w)))
         
+<<<<<<< Updated upstream
         gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY).astype(np.float32)
         Ix = cv2.Sobel(gray, cv2.CV_64F, 1, 0, ksize=3)
         Iy = cv2.Sobel(gray, cv2.CV_64F, 0, 1, ksize=3)
@@ -344,27 +295,26 @@ def process_edge_corner():
         Ixy = cv2.GaussianBlur(Ix*Iy, (5,5), 1)
         k = 0.04
         R = (Ix2 * Iy2 - Ixy**2) - k * (Ix2 + Iy2)**2
+=======
+        gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+>>>>>>> Stashed changes
         
-        corner_thresh = np.percentile(R, 99.8)
-        raw_corners = (R > corner_thresh)
-        dilated = cv2.dilate(R, None)
-        nms_mask = (R == dilated) & raw_corners
+        # Canny
+        edges = cv2.Canny(gray, 100, 200)
         
-        corner_img = img.copy()
-        ys, xs = np.where(nms_mask)
-        for x, y in zip(xs, ys):
-            cv2.circle(corner_img, (x, y), 5, (0, 0, 255), -1)
+        # Harris
+        gray_f = np.float32(gray)
+        dst = cv2.cornerHarris(gray_f, 2, 3, 0.04)
+        corn = img.copy()
+        corn[dst > 0.01*dst.max()] = [0,0,255]
         
-        corner_resized = cv2.resize(corner_img, (target_width, int(h * scale)))
-
-        _, buf1 = cv2.imencode(".png", edge_resized)
-        _, buf2 = cv2.imencode(".png", corner_resized)
+        _, b1 = cv2.imencode(".png", edges)
+        _, b2 = cv2.imencode(".png", corn)
         output.append({
             "filename": f.filename,
-            "edges": base64.b64encode(buf1).decode("ascii"),
-            "corners": base64.b64encode(buf2).decode("ascii")
+            "edges": base64.b64encode(b1).decode("ascii"),
+            "corners": base64.b64encode(b2).decode("ascii")
         })
-
     return jsonify({"images": output})
 
 @app.route("/process_aruco", methods=["POST"])
@@ -373,104 +323,140 @@ def process_aruco():
     import numpy as np
     
     files = request.files.getlist("images[]")
-    output_images = []
-    target_width = 260
+    output = []
+    dct = cv2.aruco.getPredefinedDictionary(cv2.aruco.DICT_4X4_50)
+    det = cv2.aruco.ArucoDetector(dct, cv2.aruco.DetectorParameters())
     
-    aruco_dict = cv2.aruco.getPredefinedDictionary(cv2.aruco.DICT_4X4_50)
-    params = cv2.aruco.DetectorParameters()
-    detector = cv2.aruco.ArucoDetector(aruco_dict, params)
-
     for f in files:
-        if not allowed_image(f.filename): continue
         img = read_image_from_bytes(f)
         if img is None: continue
-        
         h, w = img.shape[:2]
-        scale = target_width / w
-        img_resized = cv2.resize(img, (target_width, int(h * scale)))
+        img = cv2.resize(img, (260, int(h * 260/w)))
         
+        cnr, ids, _ = det.detectMarkers(img)
         vis = img.copy()
-        corners, ids, _ = detector.detectMarkers(img)
-        if ids is not None and len(ids) > 0:
-            cv2.aruco.drawDetectedMarkers(vis, corners, ids)
-            all_pts = []
-            for c in corners: all_pts.extend(c[0].astype(int))
-            hull = cv2.convexHull(np.array(all_pts))
-            cv2.polylines(vis, [hull], True, (0,0,255), 8)
-            for (x,y) in hull.reshape(-1,2): cv2.circle(vis, (x,y), 6, (0,0,255), -1)
-            
-        vis_resized = cv2.resize(vis, (target_width, int(h * scale)))
-        combined = np.hstack([img_resized, vis_resized])
-        _, buf = cv2.imencode(".png", combined)
-        output_images.append(base64.b64encode(buf).decode("ascii"))
+        if ids is not None:
+            cv2.aruco.drawDetectedMarkers(vis, cnr, ids)
+            pts = []
+            for c in cnr: pts.extend(c[0].astype(int))
+            if pts:
+                hull = cv2.convexHull(np.array(pts))
+                cv2.polylines(vis, [hull], True, (0,0,255), 2)
         
-    return jsonify({"images": output_images})
+        _, b = cv2.imencode(".png", vis)
+        output.append(base64.b64encode(b).decode("ascii"))
+    return jsonify({"images": output})
 
 @app.route("/process_boundary", methods=["POST"])
 def process_boundary():
     import cv2
     import numpy as np
-    
     files = request.files.getlist("images[]")
-    results = []
+    res = []
     for f in files:
-        if not allowed_image(f.filename): continue
         img = read_image_from_bytes(f)
         if img is None: continue
+        h, w = img.shape[:2]
+        img = cv2.resize(img, (300, int(h*300/w)))
         
-        original = img.copy()
         hsv = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
-        mask_color = cv2.inRange(hsv, np.array([70, 30, 30]), np.array([110, 255, 255]))
-        edges = cv2.Canny(cv2.cvtColor(img, cv2.COLOR_BGR2GRAY), 60, 150)
-        combined = cv2.bitwise_or(mask_color, edges)
-        
-        kernel = np.ones((5,5), np.uint8)
-        combined = cv2.morphologyEx(combined, cv2.MORPH_CLOSE, kernel, iterations=3)
-        
-        contours, _ = cv2.findContours(combined, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-        if contours:
-            c = max(contours, key=cv2.contourArea)
-            approx = cv2.approxPolyDP(c, 0.01 * cv2.arcLength(c, True), True)
-            cv2.polylines(original, [approx], True, (0,0,255), 5, cv2.LINE_AA)
-        results.append(original)
-
-    if not results: return jsonify({"error": "No results"}), 400
+        mask = cv2.inRange(hsv, (70,30,30), (110,255,255)) # Default teal/box range
+        cnts, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+        if cnts:
+            c = max(cnts, key=cv2.contourArea)
+            cv2.drawContours(img, [c], -1, (0,0,255), 2)
+        res.append(img)
     
-    target_width = 350
-    resized = [cv2.resize(r, (target_width, int(r.shape[0]*target_width/r.shape[1]))) for r in results]
-    final = np.vstack(resized)
-    _, buf = cv2.imencode(".png", final)
-    return jsonify({"image": base64.b64encode(buf).decode("ascii")})
+    if not res: return jsonify({"error": "No results"}), 400
+    _, b = cv2.imencode(".png", np.vstack(res))
+    return jsonify({"image": base64.b64encode(b).decode("ascii")})
 
-# -------------------------
-# Module 4: Stitching
-# -------------------------
+# ==========================================
+# 7. MODULE 4: STITCHING & SIFT
+# ==========================================
+
+
 @app.route("/module4")
-def module4(): return render_template("module4.html")
+def module4():
+    if not session.get("logged_in"):
+        return redirect("/")
+    return render_template("module4.html")
 
-@app.route("/process_stitch")
+
+# -----------------------------------
+# ✅ UPLOAD IMAGES FOR STITCHING
+# -----------------------------------
+@app.route("/upload_panorama", methods=["POST"])
+def upload_panorama():
+    files = request.files.getlist("images[]")
+
+    pano_folder = os.path.join(app.config["UPLOAD_FOLDER"], "panorama")
+    os.makedirs(pano_folder, exist_ok=True)
+
+    # ✅ Clear old images to avoid mixing runs
+    for f in os.listdir(pano_folder):
+        os.remove(os.path.join(pano_folder, f))
+
+    if not files:
+        return jsonify({"error": "No images uploaded"}), 400
+
+    saved_files = []
+    for f in files:
+        if allowed_image(f.filename):
+            filepath = os.path.join(pano_folder, f.filename)
+            f.save(filepath)
+            saved_files.append(f.filename)
+
+    return jsonify({
+        "message": "Images uploaded successfully",
+        "files": saved_files
+    })
+
+
+# -----------------------------------
+# ✅ STITCH IMAGES AFTER UPLOAD
+# -----------------------------------
+# --- REPLACE THIS FUNCTION IN APP.PY ---
+@app.route("/process_stitch", methods=["POST"])
 def process_stitch():
     import cv2
-    
-    pano_folder = os.path.join(app.config["UPLOAD_FOLDER"], "panorama")
-    if not os.path.exists(pano_folder): 
-        os.makedirs(pano_folder, exist_ok=True)
-        return jsonify({"error": "No images in uploads/panorama folder"}), 400
-    
-    image_files = sorted([os.path.join(pano_folder, f) for f in os.listdir(pano_folder) if f.lower().endswith((".jpg", ".png"))])
-    if len(image_files) < 2: return jsonify({"error": "Need 2+ images"}), 400
+    import numpy as np
+    import gc
 
-    images = [cv2.imread(p) for p in image_files if cv2.imread(p) is not None]
-    
+    # 1. Get uploaded files
+    uploaded_files = request.files.getlist("images")
+    phone_pano_file = request.files.get("phone_pano")
+
+    if not uploaded_files or len(uploaded_files) < 2:
+        return jsonify({"error": "Please upload at least 2 images to stitch."}), 400
+
+    images = []
+    # 2. Read stitch images into memory
+    for f in uploaded_files:
+        img = read_image_from_bytes(f)
+        if img is not None:
+            # Resize huge images to prevent RAM crash
+            if img.shape[1] > 800:
+                scale = 800 / img.shape[1]
+                img = cv2.resize(img, (0,0), fx=scale, fy=scale)
+            images.append(img)
+
+    if len(images) < 2:
+        return jsonify({"error": "Could not read images or images corrupted."}), 400
+
+    # 3. Stitch
     try:
         stitcher = cv2.Stitcher_create(cv2.Stitcher_PANORAMA)
     except:
         stitcher = cv2.createStitcher(cv2.Stitcher_PANORAMA)
     
-    stitcher.setPanoConfidenceThresh(0.5)
+    stitcher.setPanoConfidenceThresh(0.3)
     status, panorama = stitcher.stitch(images)
-    if status != cv2.Stitcher_OK: return jsonify({"error": f"Stitch failed: {status}"}), 400
 
+    if status != cv2.Stitcher_OK:
+        return jsonify({"error": f"Stitching failed (Code {status}). Ensure images have overlapping features."}), 400
+
+    # 4. Crop black borders
     gray = cv2.cvtColor(panorama, cv2.COLOR_BGR2GRAY)
     _, thresh = cv2.threshold(gray, 1, 255, cv2.THRESH_BINARY)
     cnts, _ = cv2.findContours(thresh, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
@@ -478,81 +464,204 @@ def process_stitch():
         x,y,w,h = cv2.boundingRect(cnts[0])
         panorama = panorama[y:y+h, x:x+w]
 
+    # 5. Encode Result
     _, buf = cv2.imencode(".jpg", panorama)
-    
+    stitched_b64 = base64.b64encode(buf).decode("utf-8")
+
+    # 6. Encode Thumbnails
     thumbs = []
     for img in images:
-        _, tbuf = cv2.imencode(".jpg", cv2.resize(img, (200,120)))
+        _, tbuf = cv2.imencode(".jpg", cv2.resize(img, (150, 100)))
         thumbs.append(base64.b64encode(tbuf).decode("utf-8"))
 
+    # 7. Process Phone Panorama (If uploaded)
+    phone_pano_b64 = None
+    if phone_pano_file:
+        phone_img = read_image_from_bytes(phone_pano_file)
+        if phone_img is not None:
+            # Resize just for display
+            if phone_img.shape[1] > 1000:
+                s = 1000 / phone_img.shape[1]
+                phone_img = cv2.resize(phone_img, (0,0), fx=s, fy=s)
+            _, pbuf = cv2.imencode(".jpg", phone_img)
+            phone_pano_b64 = base64.b64encode(pbuf).decode("utf-8")
+
+    # Cleanup
+    del images, gray, thresh, panorama
+    gc.collect()
+
     return jsonify({
-        "stitched": base64.b64encode(buf).decode("utf-8"),
-        "width": panorama.shape[1], "height": panorama.shape[0],
-        "thumbnails": thumbs
+        "stitched": stitched_b64,
+        "thumbnails": thumbs,
+        "phone_pano": phone_pano_b64
+    })
+@app.route("/process_sift", methods=["POST"])
+def process_sift_upload():
+    import cv2
+    import numpy as np
+
+    if "img1" not in request.files or "img2" not in request.files:
+        return jsonify({"error": "Both images are required"}), 400
+
+    img1 = read_image_from_bytes(request.files["img1"])
+    img2 = read_image_from_bytes(request.files["img2"])
+
+    if img1 is None or img2 is None:
+        return jsonify({"error": "Failed to read one or both images"}), 400
+
+    # Convert to grayscale
+    gray1 = cv2.cvtColor(img1, cv2.COLOR_BGR2GRAY)
+    gray2 = cv2.cvtColor(img2, cv2.COLOR_BGR2GRAY)
+
+    gray1 = cv2.resize(gray1, (600, 400))
+    gray2 = cv2.resize(gray2, (600, 400))
+
+    # ===========================
+    # OpenCV SIFT + RANSAC
+    # ===========================
+    sift = cv2.SIFT_create()
+    kp1, des1 = sift.detectAndCompute(gray1, None)
+    kp2, des2 = sift.detectAndCompute(gray2, None)
+
+    bf = cv2.BFMatcher()
+    matches = bf.knnMatch(des1, des2, k=2)
+    good = [m for m, n in matches if m.distance < 0.75 * n.distance]
+
+    if len(good) < 8:
+        return jsonify({"error": "Not enough good matches"}), 400
+
+    src = np.float32([kp1[m.queryIdx].pt for m in good]).reshape(-1, 1, 2)
+    dst = np.float32([kp2[m.trainIdx].pt for m in good]).reshape(-1, 1, 2)
+
+    H, mask = cv2.findHomography(src, dst, cv2.RANSAC, 5.0)
+    matches_mask = mask.ravel().tolist() if mask is not None else None
+
+    opencv_result = cv2.drawMatches(
+        gray1, kp1, gray2, kp2,
+        [m for i, m in enumerate(good) if matches_mask is None or matches_mask[i]],
+        None,
+        matchColor=(0, 255, 0),
+        flags=cv2.DrawMatchesFlags_NOT_DRAW_SINGLE_POINTS
+    )
+
+    # ===========================
+    # Custom (ORB fallback)
+    # ===========================
+    orb = cv2.ORB_create(3000)
+    kp1c, des1c = orb.detectAndCompute(gray1, None)
+    kp2c, des2c = orb.detectAndCompute(gray2, None)
+
+    bf2 = cv2.BFMatcher(cv2.NORM_HAMMING, crossCheck=True)
+    matches_c = bf2.match(des1c, des2c)
+    matches_c = sorted(matches_c, key=lambda x: x.distance)[:60]
+
+    custom_result = cv2.drawMatches(
+        gray1, kp1c, gray2, kp2c,
+        matches_c,
+        None,
+        matchColor=(255, 0, 0),
+        flags=cv2.DrawMatchesFlags_NOT_DRAW_SINGLE_POINTS
+    )
+
+    # ===========================
+    # Encode to Base64
+    # ===========================
+    _, buf1 = cv2.imencode(".jpg", custom_result)
+    _, buf2 = cv2.imencode(".jpg", opencv_result)
+
+    return jsonify({
+        "custom": base64.b64encode(buf1).decode("utf-8"),
+        "opencv": base64.b64encode(buf2).decode("utf-8")
     })
 
-# -------------------------
-# Module 6: SIFT/RANSAC
-# -------------------------
+# ==========================================
+# 8. MODULE 6: MOTION TRACKING (Video Streams)
+# ==========================================
 @app.route("/module6")
 def module6(): return render_template("module6.html")
 
-@app.route("/process_sift")
-def process_sift():
+def gen_markerless():
+    # Lazy generator for motion tracking
     import cv2
     import numpy as np
+    cap = cv2.VideoCapture("static/motion.mp4")
+    tracker = cv2.legacy.TrackerCSRT_create()
+    init = False
     
-    folder = os.path.join(app.config['UPLOAD_FOLDER'], "sift_images")
-    if not os.path.exists(folder): return jsonify({"error": "sift_images folder missing"})
-    
-    p1 = os.path.join(folder, "1.jpeg")
-    p2 = os.path.join(folder, "5.jpeg")
-    if not os.path.exists(p1) or not os.path.exists(p2):
-        return jsonify({"error": "Images 1.jpeg/5.jpeg not found"})
+    while True:
+        ret, frame = cap.read()
+        if not ret: break
+        
+        if not init:
+            # Auto-detect object (simple blob) for demo
+            hsv = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
+            mask = cv2.inRange(hsv, (0, 100, 100), (20, 255, 255)) # Orange-ish
+            cnts, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+            if cnts:
+                x,y,w,h = cv2.boundingRect(max(cnts, key=cv2.contourArea))
+                tracker.init(frame, (x,y,w,h))
+                init = True
+        else:
+            success, box = tracker.update(frame)
+            if success:
+                x,y,w,h = [int(v) for v in box]
+                cv2.rectangle(frame, (x,y), (x+w, y+h), (0,255,0), 2)
+                
+        _, jpeg = cv2.imencode('.jpg', frame)
+        yield (b'--frame\r\n' b'Content-Type: image/jpeg\r\n\r\n' + jpeg.tobytes() + b'\r\n')
 
-    img1 = cv2.imread(p1, cv2.IMREAD_GRAYSCALE)
-    img2 = cv2.imread(p2, cv2.IMREAD_GRAYSCALE)
-    
-    img1 = cv2.resize(img1, (600, 400))
-    img2 = cv2.resize(img2, (600, 400))
-    
-    sift = cv2.SIFT_create()
-    kp1, des1 = sift.detectAndCompute(img1, None)
-    kp2, des2 = sift.detectAndCompute(img2, None)
-    
-    bf = cv2.BFMatcher()
-    matches = bf.knnMatch(des1, des2, k=2)
-    good = [m for m,n in matches if m.distance < 0.75*n.distance]
-    
-    src = np.float32([kp1[m.queryIdx].pt for m in good]).reshape(-1,1,2)
-    dst = np.float32([kp2[m.trainIdx].pt for m in good]).reshape(-1,1,2)
-    
-    H, mask = cv2.findHomography(src, dst, cv2.RANSAC, 5.0)
-    matches_mask = mask.ravel().tolist() if mask is not None else None
-    
-    res = cv2.drawMatches(img1, kp1, img2, kp2, good, None, 
-                         matchColor=(0,255,0), matchesMask=matches_mask, flags=2)
-    
-    _, buf = cv2.imencode('.jpg', res)
-    return jsonify({"opencv": base64.b64encode(buf).decode("utf-8"), "custom": ""})
+@app.route("/video_feed_markerless")
+def video_feed_markerless():
+    return Response(gen_markerless(), mimetype='multipart/x-mixed-replace; boundary=frame')
 
+<<<<<<< Updated upstream
 # -------------------------
 # Module 7: Pose Tracking 
 # -------------------------
+=======
+def gen_aruco_stream():
+    import cv2
+    import numpy as np
+    cap = cv2.VideoCapture("static/aruco_video.mp4")
+    dct = cv2.aruco.getPredefinedDictionary(cv2.aruco.DICT_4X4_50)
+    det = cv2.aruco.ArucoDetector(dct, cv2.aruco.DetectorParameters())
+    
+    while True:
+        ret, frame = cap.read()
+        if not ret: break
+        cnr, ids, _ = det.detectMarkers(frame)
+        if ids is not None: cv2.aruco.drawDetectedMarkers(frame, cnr, ids)
+        _, jpeg = cv2.imencode('.jpg', frame)
+        yield (b'--frame\r\n' b'Content-Type: image/jpeg\r\n\r\n' + jpeg.tobytes() + b'\r\n')
+
+@app.route("/video_feed_aruco")
+def video_feed_aruco():
+    return Response(gen_aruco_stream(), mimetype='multipart/x-mixed-replace; boundary=frame')
+
+@app.route("/stream_sam2")
+def stream_sam2():
+    # Placeholder for SAM2 stream if file doesn't exist
+    return jsonify({"error": "SAM2 video not found"})
+
+# ==========================================
+# 9. MODULE 7: POSE TRACKING (HTTP POST)
+# ==========================================
+>>>>>>> Stashed changes
 mp_holistic = None
 mp_drawing = None
 holistic_net = None
 CSV_FILENAME = None
 
 def get_model():
-    """Lazy loader to prevent startup crash"""
     global mp_holistic, mp_drawing, holistic_net
     if holistic_net is None:
-        print("Loading MediaPipe (Lazy)...")
         import mediapipe as mp
         mp_holistic = mp.solutions.holistic
         mp_drawing = mp.solutions.drawing_utils
+<<<<<<< Updated upstream
 
+=======
+>>>>>>> Stashed changes
         holistic_net = mp_holistic.Holistic(
             static_image_mode=False,
             model_complexity=0, 
@@ -569,7 +678,10 @@ def download_csv_module7():
         return send_file(CSV_FILENAME, as_attachment=True)
     return "No CSV generated yet", 404
 
+<<<<<<< Updated upstream
 
+=======
+>>>>>>> Stashed changes
 @app.route('/process_frame', methods=['POST'])
 def process_frame():
     import numpy as np
@@ -580,15 +692,19 @@ def process_frame():
     try:
         data = request.json
         image_data = data.get('image')
+<<<<<<< Updated upstream
         
 
+=======
+>>>>>>> Stashed changes
         header, encoded = image_data.split(",", 1)
         binary = base64.b64decode(encoded)
         np_arr = np.frombuffer(binary, np.uint8)
         frame = cv2.imdecode(np_arr, cv2.IMREAD_COLOR)
         
-        if frame is None: return jsonify({"error": "Empty frame"}), 400
+        if frame is None: return jsonify({"error": "Empty"}), 400
 
+<<<<<<< Updated upstream
     
         model, drawing, mp_ref = get_model()
         image_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
@@ -635,6 +751,40 @@ def process_frame():
         
 
         del frame, image_rgb, results, binary
+=======
+        # Try-Catch for MediaPipe RAM safety
+        try:
+            model, drawing, mp_ref = get_model()
+            image_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+            results = model.process(image_rgb)
+            
+            # Styles
+            lm_style = drawing.DrawingSpec(color=(0,255,0), thickness=1, circle_radius=1)
+            con_style = drawing.DrawingSpec(color=(255,255,255), thickness=1, circle_radius=1)
+
+            if results.pose_landmarks:
+                drawing.draw_landmarks(frame, results.pose_landmarks, mp_ref.POSE_CONNECTIONS, lm_style, con_style)
+                
+                # CSV
+                if CSV_FILENAME is None:
+                     ts = int(time.time())
+                     CSV_FILENAME = os.path.join(UPLOAD_FOLDER, f"pose_{ts}.csv")
+                     with open(CSV_FILENAME, 'w') as f: f.write("timestamp,pose_present\n")
+                with open(CSV_FILENAME, 'a') as f: f.write(f"{int(time.time()*1000)},1\n")
+
+            if results.left_hand_landmarks:
+                drawing.draw_landmarks(frame, results.left_hand_landmarks, mp_ref.HAND_CONNECTIONS, lm_style, con_style)
+            if results.right_hand_landmarks:
+                drawing.draw_landmarks(frame, results.right_hand_landmarks, mp_ref.HAND_CONNECTIONS, lm_style, con_style)
+                
+        except Exception as e:
+            print(f"AI Skipped (RAM): {e}")
+
+        _, buffer = cv2.imencode('.jpg', frame)
+        response_b64 = base64.b64encode(buffer).decode('utf-8')
+        
+        del frame, binary
+>>>>>>> Stashed changes
         gc.collect()
 
         return jsonify({"image": f"data:image/jpeg;base64,{response_b64}"})
@@ -652,18 +802,14 @@ def module7_calc():
         baseline = float(request.form['baseline'])
         left = np.array(json.loads(request.form['left_points']), dtype=np.float32)
         right = np.array(json.loads(request.form['right_points']), dtype=np.float32)
-        
         disparities = left[:, 0] - right[:, 0]
         disparities[disparities == 0] = 0.0001
         Z_cm = fx * baseline / disparities
-        
         return f"Calculated Depths: {Z_cm.tolist()}"
-    except Exception as e:
-        return f"Error: {str(e)}"
+    except Exception as e: return f"Error: {str(e)}"
 
-@app.route("/get_sam2_results", methods=["GET"])
-def get_sam2_results():
-    return jsonify({"images": []})
-
+# ==========================================
+# 10. MAIN EXECUTION
+# ==========================================
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000)
