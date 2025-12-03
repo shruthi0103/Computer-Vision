@@ -12,7 +12,7 @@ A production-grade, web-based platform featuring real-time tracking, image proce
 | :--- | :--- |
 | **🚀 Live Website** | [View Website](https://computer-vision-production-4bab.up.railway.app) |
 | **💻 GitHub Repo** | [View Source Code](https://github.com/shruthi0103/Computer-Vision) |
-| **🎥 Demo Video** | [Watch Walkthrough](https://drive.google.com/drive/folders/1mD3YACAEspMqa3UVtZtBNZlPFoIjuBj8?usp=drive_link) |
+| **🎥 Demo Video** | [Watch Walkthrough](https://drive.google.com/drive/folders/1k7rv0vCRLej0kASPIts6NpqyNpOgWRv5?usp=drive_link) |
 
 ---
 
