@@ -265,13 +265,12 @@ def stream_sam2():
 
 
 # ==========================================
-# 9. MODULE 7 – POSE TRACKING
+# 9. MODULE 7: POSE TRACKING (HTTP POST)
 # ==========================================
 mp_holistic = None
 mp_drawing = None
 holistic_net = None
 CSV_FILENAME = None
-
 
 def get_model():
     global mp_holistic, mp_drawing, holistic_net
@@ -279,36 +278,93 @@ def get_model():
         import mediapipe as mp
         mp_holistic = mp.solutions.holistic
         mp_drawing = mp.solutions.drawing_utils
-        holistic_net = mp_holistic.Holistic()
+        holistic_net = mp_holistic.Holistic(
+            static_image_mode=False,
+            model_complexity=0, 
+            smooth_landmarks=True
+        )
     return holistic_net, mp_drawing, mp_holistic
 
-
 @app.route("/module7")
-def module7():
-    return render_template("module7.html")
+def module7(): return render_template("module7.html")
 
+@app.route("/download_csv_module7")
+def download_csv_module7():
+    if CSV_FILENAME and os.path.exists(CSV_FILENAME):
+        return send_file(CSV_FILENAME, as_attachment=True)
+    return "No CSV generated yet", 404
 
-@app.route("/process_frame", methods=["POST"])
+@app.route('/process_frame', methods=['POST'])
 def process_frame():
     import numpy as np
     import cv2
+    import gc
     global CSV_FILENAME
 
-    data = request.json
-    image_data = data["image"].split(",")[1]
-    binary = base64.b64decode(image_data)
-    frame = cv2.imdecode(np.frombuffer(binary, np.uint8), cv2.IMREAD_COLOR)
+    try:
+        data = request.json
+        image_data = data.get('image')
+        header, encoded = image_data.split(",", 1)
+        binary = base64.b64decode(encoded)
+        np_arr = np.frombuffer(binary, np.uint8)
+        frame = cv2.imdecode(np_arr, cv2.IMREAD_COLOR)
+        
+        if frame is None: return jsonify({"error": "Empty"}), 400
 
-    model, drawing, mp_ref = get_model()
-    rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-    results = model.process(rgb)
+        # Try-Catch for MediaPipe RAM safety
+        try:
+            model, drawing, mp_ref = get_model()
+            image_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+            results = model.process(image_rgb)
+            
+            # Styles
+            lm_style = drawing.DrawingSpec(color=(0,255,0), thickness=1, circle_radius=1)
+            con_style = drawing.DrawingSpec(color=(255,255,255), thickness=1, circle_radius=1)
 
-    if results.pose_landmarks:
-        drawing.draw_landmarks(frame, results.pose_landmarks, mp_ref.POSE_CONNECTIONS)
+            if results.pose_landmarks:
+                drawing.draw_landmarks(frame, results.pose_landmarks, mp_ref.POSE_CONNECTIONS, lm_style, con_style)
+                
+                # CSV
+                if CSV_FILENAME is None:
+                     ts = int(time.time())
+                     CSV_FILENAME = os.path.join(UPLOAD_FOLDER, f"pose_{ts}.csv")
+                     with open(CSV_FILENAME, 'w') as f: f.write("timestamp,pose_present\n")
+                with open(CSV_FILENAME, 'a') as f: f.write(f"{int(time.time()*1000)},1\n")
 
-    _, buf = cv2.imencode(".jpg", frame)
-    return jsonify({"image": base64.b64encode(buf).decode("utf-8")})
+            if results.left_hand_landmarks:
+                drawing.draw_landmarks(frame, results.left_hand_landmarks, mp_ref.HAND_CONNECTIONS, lm_style, con_style)
+            if results.right_hand_landmarks:
+                drawing.draw_landmarks(frame, results.right_hand_landmarks, mp_ref.HAND_CONNECTIONS, lm_style, con_style)
+                
+        except Exception as e:
+            print(f"AI Skipped (RAM): {e}")
 
+        _, buffer = cv2.imencode('.jpg', frame)
+        response_b64 = base64.b64encode(buffer).decode('utf-8')
+        
+        del frame, binary
+        gc.collect()
+
+        return jsonify({"image": f"data:image/jpeg;base64,{response_b64}"})
+
+    except Exception as e:
+        print(f"Error: {e}")
+        return jsonify({"error": str(e)}), 500
+
+@app.route('/module7_calc', methods=['POST'])
+def module7_calc():
+    import numpy as np
+    import json
+    try:
+        fx = float(request.form['fx'])
+        baseline = float(request.form['baseline'])
+        left = np.array(json.loads(request.form['left_points']), dtype=np.float32)
+        right = np.array(json.loads(request.form['right_points']), dtype=np.float32)
+        disparities = left[:, 0] - right[:, 0]
+        disparities[disparities == 0] = 0.0001
+        Z_cm = fx * baseline / disparities
+        return f"Calculated Depths: {Z_cm.tolist()}"
+    except Exception as e: return f"Error: {str(e)}"
 
 # ==========================================
 # 10. MAIN
