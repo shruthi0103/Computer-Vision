@@ -30,7 +30,7 @@ A production-grade, web-based platform featuring real-time tracking, image proce
 - Robust detection under scale and rotation variations.
 - **Image reconstruction & restoration**.
 - Handles partial occlusions using reconstruction logic.
-- 📊 Evaluation metrics – https://github.com/shruthi0103/Computer-Vision/blob/main/Demo%20videos%20link
+- 📊 Evaluation metrics – https://github.com/shruthi0103/Computer-Vision/blob/main/Evaluation_mod2.txt
 
 This module evaluates the performance of multi-object template matching using Center Localization Error and Scale Deviation as primary metrics. The evaluation measures how accurately the detected bounding boxes align with the ground-truth object locations and sizes across multiple real-world objects. The results show high accuracy for rigid, well-textured objects, while performance degrades under clutter, occlusion, and large scale variations.
 
