@@ -3,9 +3,9 @@ import base64
 import json
 import time
 import io
-import gc  # Added explicit import for garbage collection
+import gc  
 from flask import Flask, request, render_template, jsonify, redirect, session, send_file, Response
-from flask_cors import CORS # Ensure flask-cors is in requirements.txt
+from flask_cors import CORS 
 
 # -------------------------
 # Setup
@@ -18,7 +18,7 @@ os.makedirs(os.path.join("static", "mod2", "temps"), exist_ok=True)
 os.makedirs(os.path.join("static", "marker"), exist_ok=True)
 
 app = Flask(__name__, static_folder="static", template_folder="templates")
-CORS(app) # Enable CORS to allow your frontend to send POST requests freely
+CORS(app) 
 app.config["UPLOAD_FOLDER"] = UPLOAD_FOLDER
 app.config["MAX_CONTENT_LENGTH"] = 200 * 1024 * 1024
 app.secret_key = "supersecretkey"
@@ -39,13 +39,13 @@ def read_image_from_bytes(file_storage):
     return cv2.imdecode(arr, cv2.IMREAD_COLOR)
 
 # -------------------------
-# Root & Auth (MOCKED FOR STABILITY)
+# Root & Auth
 # -------------------------
 @app.route("/")
 def index():
-    # Clear session so they have to "login" (even if mocked)
+
     session.clear()
-    # Renders the landing page with the webcam
+
     return render_template("face_unlock.html")
 
 @app.route("/skip_login")
@@ -59,7 +59,7 @@ def auth_face():
     # Mock response to prevent RAM crash
     time.sleep(1.0)
     
-    # Return "No Match" so the frontend asks for manual entry
+
     return jsonify({
         "match": False, 
         "distance": 0.85, 
@@ -335,7 +335,7 @@ def process_edge_corner():
         edge_map = (grad_mag > np.percentile(grad_mag, 90)).astype(np.uint8) * 255
         edge_resized = cv2.resize(edge_map, (target_width, int(h * scale)))
 
-        # Harris Corner
+  
         gray_blur = cv2.GaussianBlur(gray, (7,7), 1)
         Ix = cv2.Sobel(gray_blur, cv2.CV_64F, 1, 0, 3)
         Iy = cv2.Sobel(gray_blur, cv2.CV_64F, 0, 1, 3)
@@ -537,7 +537,7 @@ def process_sift():
     return jsonify({"opencv": base64.b64encode(buf).decode("utf-8"), "custom": ""})
 
 # -------------------------
-# Module 7: Pose Tracking (HTTP POST)
+# Module 7: Pose Tracking 
 # -------------------------
 mp_holistic = None
 mp_drawing = None
@@ -552,7 +552,7 @@ def get_model():
         import mediapipe as mp
         mp_holistic = mp.solutions.holistic
         mp_drawing = mp.solutions.drawing_utils
-        # Use LITE model to save RAM
+
         holistic_net = mp_holistic.Holistic(
             static_image_mode=False,
             model_complexity=0, 
@@ -569,8 +569,7 @@ def download_csv_module7():
         return send_file(CSV_FILENAME, as_attachment=True)
     return "No CSV generated yet", 404
 
-# --- THE NEW HTTP POST ROUTE ---
-# --- UPDATE THIS FUNCTION IN APP.PY ---
+
 @app.route('/process_frame', methods=['POST'])
 def process_frame():
     import numpy as np
@@ -582,7 +581,7 @@ def process_frame():
         data = request.json
         image_data = data.get('image')
         
-        # Decode
+
         header, encoded = image_data.split(",", 1)
         binary = base64.b64decode(encoded)
         np_arr = np.frombuffer(binary, np.uint8)
@@ -590,17 +589,16 @@ def process_frame():
         
         if frame is None: return jsonify({"error": "Empty frame"}), 400
 
-        # Process
+    
         model, drawing, mp_ref = get_model()
         image_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
         results = model.process(image_rgb)
         
-        # --- NEW: DEFINE THIN DRAWING STYLE ---
-        # thickness=1, circle_radius=1 makes it look sharp on small images
+ 
         landmark_style = drawing.DrawingSpec(color=(0, 255, 0), thickness=1, circle_radius=1)
         connection_style = drawing.DrawingSpec(color=(255, 255, 255), thickness=1, circle_radius=1)
 
-        # Draw Pose
+
         if results.pose_landmarks:
             drawing.draw_landmarks(
                 frame, results.pose_landmarks, mp_ref.POSE_CONNECTIONS,
@@ -608,14 +606,14 @@ def process_frame():
                 connection_drawing_spec=connection_style
             )
             
-            # Simple CSV Log
+
             if CSV_FILENAME is None:
                  ts = int(time.time())
                  CSV_FILENAME = os.path.join(UPLOAD_FOLDER, f"pose_{ts}.csv")
                  with open(CSV_FILENAME, 'w') as f: f.write("timestamp,pose_present\n")
             with open(CSV_FILENAME, 'a') as f: f.write(f"{int(time.time()*1000)},1\n")
 
-        # Draw Left Hand
+
         if results.left_hand_landmarks:
             drawing.draw_landmarks(
                 frame, results.left_hand_landmarks, mp_ref.HAND_CONNECTIONS,
@@ -623,7 +621,7 @@ def process_frame():
                 connection_drawing_spec=connection_style
             )
 
-        # Draw Right Hand
+
         if results.right_hand_landmarks:
             drawing.draw_landmarks(
                 frame, results.right_hand_landmarks, mp_ref.HAND_CONNECTIONS,
@@ -631,11 +629,11 @@ def process_frame():
                 connection_drawing_spec=connection_style
             )
 
-        # Encode
+     
         _, buffer = cv2.imencode('.jpg', frame)
         response_b64 = base64.b64encode(buffer).decode('utf-8')
         
-        # Cleanup
+
         del frame, image_rgb, results, binary
         gc.collect()
 
